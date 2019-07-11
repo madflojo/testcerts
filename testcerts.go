@@ -1,6 +1,21 @@
-// Package testcerts enables users to create temporary x509 Certificates to use with testing.
+// Package testcerts enables users to create temporary x509 Certificates for testing.
 //
-// There are quite a few tools for creating certificates on the command like. This package is focued on creating certificates during testing. Rather than providing a command line interface, this package focuses on creating helper functions for generating certficates.
+// There are many Certificate generation tools out there, but most focus on being a CLI tool. This package is focused
+// on providing helper functions for creating Certificates. These helper functions can be used as part of your unit
+// and integration tests as per the example below.
+//
+//  func TestSomething(t *testing.T) {
+//    err := testcerts.GenerateCertsToFile("/tmp/cert", "/tmp/key")
+//    if err != nil {
+//      // do stuff
+//    }
+//
+//    _ = something.Run("/tmp/cert", "/tmp/key")
+//    // do more testing
+//  }
+//
+// The goal of this package, is to make testing TLS based services easier. Without having to leave the comfort of your
+// editor, or place test certificates in your repo.
 package testcerts
 
 import (
@@ -15,7 +30,7 @@ import (
 	"time"
 )
 
-// GenerateCerts will create a temporary x509 Certificate and Key that can be used for testing.
+// GenerateCerts will create a temporary x509 Certificate and Key.
 //	cert, key, err := GenerateCerts()
 //	if err != nil {
 //		// do stuff
@@ -29,7 +44,12 @@ func GenerateCerts() ([]byte, []byte, error) {
 	return pem.EncodeToMemory(c), pem.EncodeToMemory(k), nil
 }
 
-// GenerateCertsToFile will create a temporary x509 Certificate and Key files that can be used for testing.
+// GenerateCertsToFile will create a temporary x509 Certificate and Key. Writing them to the file provided.
+//  err := GenerateCertsToFile("/path/to/cert", "/path/to/key")
+//  if err != nil {
+//    // do stuff
+//  }
+//
 func GenerateCertsToFile(certFile, keyFile string) error {
 	// Create Certs
 	c, k, err := genCerts()
