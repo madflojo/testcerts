@@ -1,1 +1,3 @@
-# testcerts
+# TestCerts is a Go library for creating temporary test certificates.
+
+Currently a quick and dirty solution to a common problem. Expect a more refined package in a bit...
