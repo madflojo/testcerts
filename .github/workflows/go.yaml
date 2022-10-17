@@ -2,9 +2,9 @@ name: Go
 
 on:
   push:
-    branches: [ master ]
+    branches: [ main, actions ]
   pull_request:
-    branches: [ master ]
+    branches: [ main, actions ]
 
 jobs:
   build:
@@ -26,7 +26,7 @@ jobs:
     - name: Test
       run: |
         go vet -v ./...
-        go test -v -covermode=count -coverprofile=coverage.out ./...
+        go test -v --race -covermode=count -coverprofile=coverage.out ./...
 
     - name: Upload Code Coverage
       if: runner.os == 'Linux'
