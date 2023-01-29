@@ -45,7 +45,7 @@ func GenerateCerts() ([]byte, []byte, error) {
 	return pem.EncodeToMemory(c), pem.EncodeToMemory(k), nil
 }
 
-// GenerateCertsToFile will create a temporary x509 Certificate and Key. Writing them to the file provided.
+// GenerateCertsToTempFile generates a certificate and key pair, writes them to temporary files in the specified directory, and returns the file names.
 //
 //	err := GenerateCertsToFile("/path/to/cert", "/path/to/key")
 //	if err != nil {
@@ -60,7 +60,7 @@ func GenerateCertsToFile(certFile, keyFile string) error {
 		return err
 	}
 
-	// Write to Certificate File
+	// Write Certificate
 	cfh, err := os.Create(certFile)
 	if err != nil {
 		return fmt.Errorf("unable to create certificate file - %s", err)
@@ -71,7 +71,7 @@ func GenerateCertsToFile(certFile, keyFile string) error {
 		return fmt.Errorf("unable to create certificate file - %s", err)
 	}
 
-	// Write to Key File
+	// Write Key
 	kfh, err := os.Create(keyFile)
 	if err != nil {
 		return fmt.Errorf("unable to create certificate file - %s", err)
