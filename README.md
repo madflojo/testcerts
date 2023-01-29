@@ -21,7 +21,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/<username>/testcerts"
+	"github.com/madflojo/testcerts"
 )
 
 func main() {
@@ -43,7 +43,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/<username>/testcerts"
+	"github.com/madflojo/testcerts"
 )
 
 func main() {
@@ -65,7 +65,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/<username>/testcerts"
+	"github.com/madflojo/testcerts"
 )
 
 func main() {
