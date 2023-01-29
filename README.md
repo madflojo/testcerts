@@ -4,7 +4,7 @@
  [![Coverage Status](https://coveralls.io/repos/github/madflojo/testcerts/badge.svg?branch=master)](https://coveralls.io/github/madflojo/testcerts?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/madflojo/testcerts)](https://goreportcard.com/report/github.com/madflojo/testcerts) [![Documentation](https://godoc.org/github.com/madflojo/testcerts?status.svg)](http://godoc.org/github.com/madflojo/testcerts)
 [![license](https://img.shields.io/github/license/madflojo/testcerts.svg?maxAge=2592000)](https://github.com/madflojo/testcerts/LICENSE)
 
-testcerts is a Go package that makes it easy for developers to generate x509 certificates for testing and development purposes. The package provides an easy-to-use API for generating self-signed certificates and keys, and saving them to both temporary and non-temporary files.
+testcerts is a Go package that makes it easy for developers to generate x509 certificates for testing and development purposes. The package provides an easy-to-use API for generating self-signed certificates and keys for testing.
 
 What makes testcerts unique is its ability to generate certificates and keys with a single line of code, and also its ability to handle saving them to temp and non-temp files, which eliminates the need for developers to handle file operations while testing their code.
 
