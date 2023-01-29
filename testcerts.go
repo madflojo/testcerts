@@ -7,22 +7,14 @@ named file in a specified or temporary directory.
 
 For example, to generate and save a certificate and key to a temporary directory:
 
-	package main
-
-	import (
-		"fmt"
-		"log"
-
-		"testcerts"
-	)
-
-	func main() {
-		certPath, keyPath, err := testcerts.GenerateCertsToTempFile("")
+	func TestSomething(t *testing.T) {
+		certFile, keyFile, err := testcerts.GenerateCertsToTempFile("/tmp/")
 		if err != nil {
-			log.Fatal(err)
+			// do stuff
 		}
-		fmt.Println("Certificate written to:", certPath)
-		fmt.Println("Key written to:", keyPath)
+
+		_ = something.Run(certFile, keyFile)
+		// do more testing
 	}
 
 This will create a temporary certificate and key and print the paths to where the files were written.
