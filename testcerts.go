@@ -1,21 +1,32 @@
-// Package testcerts enables users to create temporary x509 Certificates for testing.
-//
-// There are many Certificate generation tools out there, but most focus on being a CLI tool. This package is focused
-// on providing helper functions for creating Certificates. These helper functions can be used as part of your unit
-// and integration tests as per the example below.
-//
-//	func TestSomething(t *testing.T) {
-//	  err := testcerts.GenerateCertsToFile("/tmp/cert", "/tmp/key")
-//	  if err != nil {
-//	    // do stuff
-//	  }
-//
-//	  _ = something.Run("/tmp/cert", "/tmp/key")
-//	  // do more testing
-//	}
-//
-// The goal of this package, is to make testing TLS based services easier. Without having to leave the comfort of your
-// editor, or place test certificates in your repo.
+/*
+Package testcerts provides a set of functions for generating and saving x509 test certificates to file.
+
+This package can be used in testing and development environments where a set of trusted certificates are needed.
+The main function, GenerateCertsToTempFile, generates an x509 certificate and key and writes them to a randomly
+named file in a specified or temporary directory.
+
+For example, to generate and save a certificate and key to a temporary directory:
+
+	package main
+
+	import (
+		"fmt"
+		"log"
+
+		"testcerts"
+	)
+
+	func main() {
+		certPath, keyPath, err := testcerts.GenerateCertsToTempFile("")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println("Certificate written to:", certPath)
+		fmt.Println("Key written to:", keyPath)
+	}
+
+This will create a temporary certificate and key and print the paths to where the files were written.
+*/
 package testcerts
 
 import (
@@ -30,11 +41,12 @@ import (
 	"time"
 )
 
-// GenerateCerts will create a temporary x509 Certificate and Key.
+// GenerateCerts generates an x509 certificate and key.
+// It returns the certificate and key as byte slices, and any error that occurred.
 //
 //	cert, key, err := GenerateCerts()
 //	if err != nil {
-//		// do stuff
+//		// handle error
 //	}
 func GenerateCerts() ([]byte, []byte, error) {
 	// Create certs and return as []byte
@@ -45,14 +57,14 @@ func GenerateCerts() ([]byte, []byte, error) {
 	return pem.EncodeToMemory(c), pem.EncodeToMemory(k), nil
 }
 
-// GenerateCertsToTempFile generates a certificate and key pair, writes them to temporary files in the specified directory, and returns the file names.
+// GenerateCertsToFile creates an x509 certificate and key and writes it to the specified file paths.
 //
 //	err := GenerateCertsToFile("/path/to/cert", "/path/to/key")
 //	if err != nil {
-//	  // do stuff
+//		// handle error
 //	}
 //
-// If the supplied files exist the contents will be overwritten with new certificate and key data.
+// If the specified file paths already exist, it will overwrite the existing files.
 func GenerateCertsToFile(certFile, keyFile string) error {
 	// Create Certs
 	c, k, err := GenerateCerts()
@@ -85,14 +97,14 @@ func GenerateCertsToFile(certFile, keyFile string) error {
 	return nil
 }
 
-// GenerateCertsToTempFile will create a temporary x509 Certificate and Key to a randomly generated file using the path provided.
+// GenerateCertsToTempFile will create a temporary x509 certificate and key in a randomly generated file using the
+// directory path provided. If no directory is specified, the default directory for temporary files as returned by
+// os.TempDir will be used.
 //
 //	cert, key, err := GenerateCertsToTempFile("/tmp/")
 //	if err != nil {
-//		// do something
+//		// handle error
 //	}
-//
-// If no directory is specified the default directory for temporary files as returned by os.TempDir will be used.
 func GenerateCertsToTempFile(dir string) (string, string, error) {
 	// Create Certs
 	c, k, err := GenerateCerts()
