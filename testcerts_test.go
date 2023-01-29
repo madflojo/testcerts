@@ -74,7 +74,7 @@ func TestGeneratingCertsToFile(t *testing.T) {
 		}
 	})
 
-	t.Run("Testing the unhappy path for insufficent permissions", func(t *testing.T) {
+	t.Run("Testing the unhappy path for insufficient permissions", func(t *testing.T) {
 		dir, err := os.MkdirTemp("", "permission-test")
 		if err != nil {
 			t.Errorf("Error creating temp directory - %s", err)
