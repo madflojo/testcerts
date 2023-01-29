@@ -51,9 +51,11 @@ func GenerateCerts() ([]byte, []byte, error) {
 //	if err != nil {
 //	  // do stuff
 //	}
+//
+// If the supplied files exist the contents will be overwritten with new certificate and key data.
 func GenerateCertsToFile(certFile, keyFile string) error {
 	// Create Certs
-	c, k, err := genCerts()
+	c, k, err := GenerateCerts()
 	if err != nil {
 		return err
 	}
@@ -64,7 +66,7 @@ func GenerateCertsToFile(certFile, keyFile string) error {
 		return fmt.Errorf("unable to create certificate file - %s", err)
 	}
 	defer cfh.Close()
-	err = pem.Encode(cfh, c)
+	_, err = cfh.Write(c)
 	if err != nil {
 		return fmt.Errorf("unable to create certificate file - %s", err)
 	}
@@ -75,12 +77,51 @@ func GenerateCertsToFile(certFile, keyFile string) error {
 		return fmt.Errorf("unable to create certificate file - %s", err)
 	}
 	defer kfh.Close()
-	err = pem.Encode(kfh, k)
+	_, err = kfh.Write(k)
 	if err != nil {
 		return fmt.Errorf("unable to create certificate file - %s", err)
 	}
 
 	return nil
+}
+
+// GenerateCertsToTempFile will create a temporary x509 Certificate and Key to a randomly generated file using the path provided.
+//
+//	cert, key, err := GenerateCertsToTempFile("/tmp/")
+//	if err != nil {
+//		// do something
+//	}
+//
+// If no directory is specified the default directory for temporary files as returned by os.TempDir will be used.
+func GenerateCertsToTempFile(dir string) (string, string, error) {
+	// Create Certs
+	c, k, err := GenerateCerts()
+	if err != nil {
+		return "", "", err
+	}
+
+	cfh, err := os.CreateTemp(dir, "*.cert")
+	if err != nil {
+		return "", "", fmt.Errorf("could not create temporary file - %s", err)
+	}
+	defer cfh.Close()
+	_, err = cfh.Write(c)
+	if err != nil {
+		return cfh.Name(), "", fmt.Errorf("unable to create certificate file - %s", err)
+	}
+
+	// Write to Key File
+	kfh, err := os.CreateTemp(dir, "*.key")
+	if err != nil {
+		return cfh.Name(), "", fmt.Errorf("unable to create certificate file - %s", err)
+	}
+	defer kfh.Close()
+	_, err = kfh.Write(k)
+	if err != nil {
+		return cfh.Name(), kfh.Name(), fmt.Errorf("unable to create certificate file - %s", err)
+	}
+
+	return cfh.Name(), kfh.Name(), nil
 }
 
 // genCerts will perform the task of creating a temporary Certificate and Key.
@@ -101,14 +142,14 @@ func genCerts() (*pem.Block, *pem.Block, error) {
 	// Create a Private Key
 	key, err := rsa.GenerateKey(rand.Reader, 4096)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Could not generate rsa key - %s", err)
+		return nil, nil, fmt.Errorf("could not generate rsa key - %s", err)
 	}
 
 	// Use CA Cert to sign a CSR and create a Public Cert
 	csr := &key.PublicKey
 	cert, err := x509.CreateCertificate(rand.Reader, ca, ca, csr, key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("Could not generate certificate - %s", err)
+		return nil, nil, fmt.Errorf("could not generate certificate - %s", err)
 	}
 
 	// Convert keys into pem.Block
