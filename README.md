@@ -17,17 +17,14 @@ Overall, testcerts simplifies the process of generating and managing test certif
 The `GenerateCertsToFile` function generates an X.509 certificate and key and writes them to the file paths provided.
 
 ```go
-package main
-
-import (
-	"github.com/madflojo/testcerts"
-)
-
-func main() {
-	err := testcerts.GenerateCertsToFile("/tmp/cert.pem", "/tmp/key.pem")
+func TestSomething(t *testing.T) {
+	err := testcerts.GenerateCertsToFile("/tmp/cert", "/tmp/key")
 	if err != nil {
-		// handle error
+		// do stuff
 	}
+
+	_ = something.Run("/tmp/cert", "/tmp/key")
+	// do more testing
 }
 ```
 
@@ -36,17 +33,14 @@ func main() {
 The `GenerateCertsToTempFile` function generates an X.509 certificate and key and writes them to randomly generated files in the directory provided or the system's temporary directory if none is provided. The function returns the file paths of the generated files.
 
 ```go
-package main
-
-import (
-	"github.com/madflojo/testcerts"
-)
-
-func main() {
+func TestSomething(t *testing.T) {
 	certFile, keyFile, err := testcerts.GenerateCertsToTempFile("/tmp/")
 	if err != nil {
-		// handle error
+		// do stuff
 	}
+
+	_ = something.Run(certFile, keyFile)
+	// do more testing
 }
 ```
 
@@ -55,21 +49,14 @@ func main() {
 The `GenerateCerts` function generates an X.509 certificate and key and returns them as byte slices.
 
 ```go
-package main
-
-import (
-	"fmt"
-
-	"github.com/madflojo/testcerts"
-)
-
-func main() {
+func TestSomething(t *testing.T) {
 	cert, key, err := testcerts.GenerateCerts()
 	if err != nil {
-		// handle error
+		// do stuff
 	}
-	fmt.Printf("Certificate: %s\n", cert)
-	fmt.Printf("Key: %s\n", key)
+
+	_ = something.Run(cert, key)
+	// do more testing
 }
 ```
 
