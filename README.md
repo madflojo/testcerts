@@ -26,7 +26,7 @@ import (
 func main() {
 	err := testcerts.GenerateCertsToFile("/tmp/cert.pem", "/tmp/key.pem")
 	if err != nil {
-    // handle error
+		// handle error
 	}
 }
 ```
@@ -45,7 +45,7 @@ import (
 func main() {
 	certFile, keyFile, err := testcerts.GenerateCertsToTempFile("/tmp/")
 	if err != nil {
-    // handle error
+		// handle error
 	}
 }
 ```
@@ -59,13 +59,14 @@ package main
 
 import (
 	"fmt"
+
 	"github.com/madflojo/testcerts"
 )
 
 func main() {
 	cert, key, err := testcerts.GenerateCerts()
 	if err != nil {
-    // handle error
+		// handle error
 	}
 	fmt.Printf("Certificate: %s\n", cert)
 	fmt.Printf("Key: %s\n", key)
