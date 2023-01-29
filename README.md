@@ -20,17 +20,14 @@ The `GenerateCertsToFile` function generates an X.509 certificate and key and wr
 package main
 
 import (
-	"fmt"
 	"github.com/madflojo/testcerts"
 )
 
 func main() {
-	certFile, keyFile, err := testcerts.GenerateCertsToFile("/tmp/cert.pem", "/tmp/key.pem")
+	err := testcerts.GenerateCertsToFile("/tmp/cert.pem", "/tmp/key.pem")
 	if err != nil {
-		fmt.Printf("Error generating certificates: %s", err)
+    // handle error
 	}
-	fmt.Printf("Certificate written to: %s\n", certFile)
-	fmt.Printf("Key written to: %s\n", keyFile)
 }
 ```
 
@@ -42,17 +39,14 @@ The `GenerateCertsToTempFile` function generates an X.509 certificate and key an
 package main
 
 import (
-	"fmt"
 	"github.com/madflojo/testcerts"
 )
 
 func main() {
 	certFile, keyFile, err := testcerts.GenerateCertsToTempFile("/tmp/")
 	if err != nil {
-		fmt.Printf("Error generating certificates: %s", err)
+    // handle error
 	}
-	fmt.Printf("Certificate written to: %s\n", certFile)
-	fmt.Printf("Key written to: %s\n", keyFile)
 }
 ```
 
@@ -71,7 +65,7 @@ import (
 func main() {
 	cert, key, err := testcerts.GenerateCerts()
 	if err != nil {
-		fmt.Printf("Error generating certificates: %s", err)
+    // handle error
 	}
 	fmt.Printf("Certificate: %s\n", cert)
 	fmt.Printf("Key: %s\n", key)
