@@ -1,64 +1,73 @@
 # testcerts
 
 ![Actions Status](https://github.com/madflojo/testcerts/actions/workflows/go.yaml/badge.svg?branch=main)
- [![Coverage Status](https://coveralls.io/repos/github/madflojo/testcerts/badge.svg?branch=master)](https://coveralls.io/github/madflojo/testcerts?branch=master) [![Go Report Card](https://goreportcard.com/badge/github.com/madflojo/testcerts)](https://goreportcard.com/report/github.com/madflojo/testcerts) [![Documentation](https://godoc.org/github.com/madflojo/testcerts?status.svg)](http://godoc.org/github.com/madflojo/testcerts)
+[![codecov](https://codecov.io/gh/madflojo/testcerts/branch/main/graph/badge.svg?token=H9C9B6I0AS)](https://codecov.io/gh/madflojo/testcerts)
+[![Go Report Card](https://goreportcard.com/badge/github.com/madflojo/testcerts)](https://goreportcard.com/report/github.com/madflojo/testcerts)
+[![Go Reference](https://pkg.go.dev/badge/github.com/madflojo/testcerts.svg)](https://pkg.go.dev/github.com/madflojo/testcerts)
 [![license](https://img.shields.io/github/license/madflojo/testcerts.svg?maxAge=2592000)](https://github.com/madflojo/testcerts/LICENSE)
 
-testcerts is a Go package that makes it easy for developers to generate x509 certificates for testing and development purposes. The package provides an easy-to-use API for generating self-signed certificates and keys for testing.
-
-What makes testcerts unique is its ability to generate certificates and keys with a single line of code, and also its ability to handle saving them to temp and non-temp files, which eliminates the need for developers to handle file operations while testing their code.
-
-Overall, testcerts simplifies the process of generating and managing test certificates, making it a valuable tool for any developer working with x509 certificates.
-
-## Usage
-
-### Generating Certificates to File
-
-The `GenerateCertsToFile` function generates an X.509 certificate and key and writes them to the file paths provided.
+Stop saving test certificates in your code repos. Start generating them in your tests.
 
 ```go
-func TestSomething(t *testing.T) {
-	err := testcerts.GenerateCertsToFile("/tmp/cert", "/tmp/key")
+func TestFunc(t *testing.T) {
+	// Create and write self-signed Certificate and Key to temporary files
+	cert, key, err := testcerts.GenerateToTempFile("/tmp/")
 	if err != nil {
-		// do stuff
+		// do something
 	}
+	defer os.Remove(key)
+	defer os.Remove(cert)
 
-	_ = something.Run("/tmp/cert", "/tmp/key")
-	// do more testing
+	// Start HTTP Listener with test certificates
+	err = http.ListenAndServeTLS("127.0.0.1:443", cert, key, someHandler)
+	if err != nil {
+		// do something
+	}
 }
 ```
 
-### Generating Certificates to Temporary File
-
-The `GenerateCertsToTempFile` function generates an X.509 certificate and key and writes them to randomly generated files in the directory provided or the system's temporary directory if none is provided. The function returns the file paths of the generated files.
+For more complex tests, you can also use this package to create a Certificate Authority and a key pair signed by that Certificate Authority for any test domain you want.
 
 ```go
-func TestSomething(t *testing.T) {
-	certFile, keyFile, err := testcerts.GenerateCertsToTempFile("/tmp/")
-	if err != nil {
-		// do stuff
+func TestFunc(t *testing.T) {
+	// Generate Certificate Authority
+	ca := testcerts.NewCA()
+
+	go func() {
+		// Create a signed Certificate and Key for "localhost"
+		certs, err := ca.NewKeyPair("localhost")
+		if err != nil {
+			// do something
+		}
+
+		// Write certificates to a file
+		err = certs.ToFile("/tmp/cert", "/tmp/key")
+		if err {
+			// do something
+		}
+
+		// Start HTTP Listener
+		err = http.ListenAndServeTLS("localhost:443", cert, key, someHandler)
+		if err != nil {
+			// do something
+		}
+	}()
+
+	// Create a client with the self-signed CA
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: ca.CertPool(),
+			},
+		},
 	}
 
-	_ = something.Run(certFile, keyFile)
-	// do more testing
+	// Make an HTTPS request
+	r, _ := client.Get("https://myserver.internal.net:9443")
 }
 ```
 
-### Generating Certificates
-
-The `GenerateCerts` function generates an X.509 certificate and key and returns them as byte slices.
-
-```go
-func TestSomething(t *testing.T) {
-	cert, key, err := testcerts.GenerateCerts()
-	if err != nil {
-		// do stuff
-	}
-
-	_ = something.Run(cert, key)
-	// do more testing
-}
-```
+Simplify your testing, and don't hassle with certificates anymore.
 
 ## Contributing
 
