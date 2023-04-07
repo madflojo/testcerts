@@ -55,7 +55,7 @@ For more complex tests, you can also use this package to create a Certificate Au
 		}
 
 		// Make an HTTPS request
-		r, _ := client.Get("https://localhost:443")
+		r, _ := client.Get("https://localhost")
 	}
 
 Simplify your testing, and don't hassle with certificates anymore.

@@ -63,7 +63,7 @@ func TestFunc(t *testing.T) {
 	}
 
 	// Make an HTTPS request
-	r, _ := client.Get("https://myserver.internal.net:9443")
+	r, _ := client.Get("https://localhost")
 }
 ```
 
