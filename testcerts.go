@@ -39,7 +39,7 @@ For more complex tests, you can also use this package to create a Certificate Au
 			}
 
 			// Start HTTP Listener
-			err = http.ListenAndServeTLS("localhost:443", cert, key, someHandler)
+			err = http.ListenAndServeTLS("localhost:443", "/tmp/cert", "/tmp/key", someHandler)
 			if err != nil {
 				// do something
 			}
@@ -74,7 +74,7 @@ import (
 	"time"
 )
 
-// CertificateAuthority represents an x509 certificate authority.
+// CertificateAuthority represents a self-signed x509 certificate authority.
 type CertificateAuthority struct {
 	cert       *x509.Certificate
 	certPool   *x509.CertPool
@@ -82,7 +82,7 @@ type CertificateAuthority struct {
 	privateKey *pem.Block
 }
 
-// KeyPair represents a pair of x509 certificate and private key.
+// KeyPair represents a pair of self-signed x509 certificate and private key.
 type KeyPair struct {
 	cert       *x509.Certificate
 	publicKey  *pem.Block
@@ -113,7 +113,7 @@ func NewCA() *CertificateAuthority {
 		return ca
 	}
 
-	// Crete CertPool
+	// Create CertPool
 	ca.certPool = x509.NewCertPool()
 	result := ca.certPool.AppendCertsFromPEM(ca.PublicKey())
 	if !result {
@@ -126,7 +126,6 @@ func NewCA() *CertificateAuthority {
 
 // NewKeyPair generates a new KeyPair signed by the CertificateAuthority for the given domains.
 // The domains are used to populate the Subject Alternative Name field of the certificate.
-// Returns an error if any of the given domains are invalid.
 func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) {
 	// Create a Certificate
 	kp := &KeyPair{cert: &x509.Certificate{
@@ -142,6 +141,8 @@ func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) 
 	}}
 
 	var err error
+  
+  // Generate KeyPair
 	kp.publicKey, kp.privateKey, err = genKeyPair(ca.cert, kp.cert)
 	if err != nil {
 		return kp, fmt.Errorf("could not generate keypair: %s", err)
@@ -185,6 +186,7 @@ func (ca *CertificateAuthority) ToFile(certFile, keyFile string) error {
 // ToTempFile saves the CertificateAuthority certificate and private key to temporary files.
 // The temporary files are created in the specified directory and have random names.
 func (ca *CertificateAuthority) ToTempFile(dir string) (*os.File, *os.File, error) {
+  // Write Certificate
 	cfh, err := os.CreateTemp(dir, "*.cert")
 	if err != nil {
 		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %s", err)
@@ -195,7 +197,7 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (*os.File, *os.File, erro
 		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %s", err)
 	}
 
-	// Write to Key File
+	// Write Key
 	kfh, err := os.CreateTemp(dir, "*.key")
 	if err != nil {
 		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %s", err)
@@ -240,6 +242,7 @@ func (kp *KeyPair) ToFile(certFile, keyFile string) error {
 // ToTempFile saves the KeyPair certificate and private key to temporary files.
 // The temporary files are created in the specified directory and have random names.
 func (kp *KeyPair) ToTempFile(dir string) (*os.File, *os.File, error) {
+  // Write Certificate
 	cfh, err := os.CreateTemp(dir, "*.cert")
 	if err != nil {
 		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %s", err)
@@ -250,7 +253,7 @@ func (kp *KeyPair) ToTempFile(dir string) (*os.File, *os.File, error) {
 		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %s", err)
 	}
 
-	// Write to Key File
+	// Write Key
 	kfh, err := os.CreateTemp(dir, "*.key")
 	if err != nil {
 		return cfh, &os.File{}, fmt.Errorf("unable to create key file - %s", err)
@@ -326,7 +329,7 @@ func genKeyPair(ca *x509.Certificate, cert *x509.Certificate) (*pem.Block, *pem.
 		return nil, nil, fmt.Errorf("could not generate rsa key - %s", err)
 	}
 
-	// Use CA Cert to sign a CSR and create a Public Cert
+	// Use CA Cert to sign and create a Public Cert
 	certificate, err := x509.CreateCertificate(rand.Reader, cert, ca, &key.PublicKey, key)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not generate certificate - %s", err)

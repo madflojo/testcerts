@@ -47,7 +47,7 @@ func TestFunc(t *testing.T) {
 		}
 
 		// Start HTTP Listener
-		err = http.ListenAndServeTLS("localhost:443", cert, key, someHandler)
+		err = http.ListenAndServeTLS("localhost:443", "/tmp/cert", "/tmp/key", someHandler)
 		if err != nil {
 			// do something
 		}
