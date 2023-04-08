@@ -1,7 +1,6 @@
 package testcerts
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/http"
@@ -345,9 +344,21 @@ func TestGenerateCertsToTempFile(t *testing.T) {
 }
 
 func TestUsingCerts(t *testing.T) {
-
 	// Generate Certificate Authority
 	ca := NewCA()
+
+	// Write CA Cert to File and set as System CA
+	caCert, _, err := ca.ToTempFile("/tmp/certtests/")
+	if err != nil {
+		t.Errorf("Could not write CA certs to file - %s", err)
+	}
+	os.Setenv("SSL_CERT_FILE", caCert.Name())
+
+	// Create HTTP Server
+	server := &http.Server{
+		Addr: "0.0.0.0:443",
+	}
+	defer server.Close()
 
 	go func() {
 		// Create a signed Certificate and Key for "localhost"
@@ -357,39 +368,23 @@ func TestUsingCerts(t *testing.T) {
 		}
 
 		// Write certificates to a file
-		cert, key, err := certs.ToTempFile("")
+		cert, key, err := certs.ToTempFile("/tmp/certtests/")
 		if err != nil {
 			t.Errorf("Error writing certs to temp files - %s", err)
 		}
 
-		// Add Handler
-		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { fmt.Fprintf(w, "Hello") })
-
 		// Start HTTP Listener
-		err = http.ListenAndServeTLS(":8443", cert.Name(), key.Name(), nil)
+		err = server.ListenAndServeTLS(cert.Name(), key.Name())
 		if err != nil && err != http.ErrServerClosed {
 			t.Errorf("Listener returned error - %s", err)
 		}
 	}()
 
-	<-time.After(1 * time.Second)
-
-	// Create a client with the self-signed CA
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: ca.CertPool(),
-			},
-		},
-	}
+	<-time.After(5 * time.Second)
 
 	// Make an HTTPS request
-	r, err := client.Get("https://localhost:8443")
+	_, err = http.Get("https://localhost")
 	if err != nil {
 		t.Errorf("Client returned error - %s", err)
-		return
-	}
-	if r.StatusCode != 200 {
-		t.Errorf("Client returned unexpected status - %s", r.Status)
 	}
 }

@@ -97,6 +97,7 @@ func NewCA() *CertificateAuthority {
 			Organization: []string{"Never Use this Certificate in Production Inc."},
 		},
 		SerialNumber:          big.NewInt(42),
+		NotBefore:             time.Now().Add(-1 * time.Hour),
 		NotAfter:              time.Now().Add(2 * time.Hour),
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
@@ -134,10 +135,10 @@ func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) 
 		},
 		DNSNames:              domains,
 		SerialNumber:          big.NewInt(42),
+		NotBefore:             time.Now().Add(-1 * time.Hour),
 		NotAfter:              time.Now().Add(2 * time.Hour),
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
 		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
 	}}
 
 	var err error
