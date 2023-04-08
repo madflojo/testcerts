@@ -366,7 +366,7 @@ func TestUsingCerts(t *testing.T) {
 		http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) { fmt.Fprintf(w, "Hello") })
 
 		// Start HTTP Listener
-		err = http.ListenAndServeTLS("localhost:8443", cert.Name(), key.Name(), nil)
+		err = http.ListenAndServeTLS(":8443", cert.Name(), key.Name(), nil)
 		if err != nil && err != http.ErrServerClosed {
 			t.Errorf("Listener returned error - %s", err)
 		}
