@@ -1,18 +1,17 @@
 package testcerts
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"net/http"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestCertsUsage(t *testing.T) {
-	// Generate Happy Path
-
-	// Generate No Domains
-
 	// Generate CA
 	ca := NewCA()
 	if len(ca.PrivateKey()) == 0 || len(ca.PublicKey()) == 0 {
@@ -339,4 +338,54 @@ func TestGenerateCertsToTempFile(t *testing.T) {
 			t.Errorf("Expected error when generating a key with a bad directory path got nil")
 		}
 	})
+}
+
+func TestUsingCerts(t *testing.T) {
+	// Create a signed Certificate and Key for "localhost"
+	certs, err := NewCA().NewKeyPair("localhost")
+	if err != nil {
+		t.Errorf("Error generating keypair - %s", err)
+	}
+
+	// Write certificates to a file
+	cert, key, err := certs.ToTempFile("")
+	if err != nil {
+		t.Errorf("Error writing certs to temp files - %s", err)
+	}
+
+	// Create HTTP Server
+	server := &http.Server{
+		Addr: "0.0.0.0:8443",
+	}
+	defer server.Close()
+
+	go func() {
+		// Start HTTP Listener
+		err = server.ListenAndServeTLS(cert.Name(), key.Name())
+		if err != nil && err != http.ErrServerClosed {
+			t.Errorf("Listener returned error - %s", err)
+		}
+	}()
+
+	// Wait for Listener to start
+	<-time.After(3 * time.Second)
+
+	// Create CA Pool
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(certs.PublicKey())
+
+	// Setup HTTP Client with Cert Pool
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: pool,
+			},
+		},
+	}
+
+	// Make an HTTPS request
+	_, err = client.Get("https://localhost:8443")
+	if err != nil {
+		t.Errorf("Client returned error - %s", err)
+	}
 }

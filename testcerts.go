@@ -63,8 +63,9 @@ Simplify your testing, and don't hassle with certificates anymore.
 package testcerts
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
 	"crypto/rand"
-	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -97,10 +98,11 @@ func NewCA() *CertificateAuthority {
 			Organization: []string{"Never Use this Certificate in Production Inc."},
 		},
 		SerialNumber:          big.NewInt(42),
+		NotBefore:             time.Now().Add(-1 * time.Hour),
 		NotAfter:              time.Now().Add(2 * time.Hour),
 		IsCA:                  true,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
+		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
 		BasicConstraintsValid: true,
 	}}
 
@@ -132,17 +134,17 @@ func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) 
 		Subject: pkix.Name{
 			Organization: []string{"Never Use this Certificate in Production Inc."},
 		},
-		DNSNames:              domains,
-		SerialNumber:          big.NewInt(42),
-		NotAfter:              time.Now().Add(2 * time.Hour),
-		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:              x509.KeyUsageDigitalSignature | x509.KeyUsageCertSign,
-		BasicConstraintsValid: true,
+		DNSNames:     domains,
+		SerialNumber: big.NewInt(42),
+		NotBefore:    time.Now().Add(-1 * time.Hour),
+		NotAfter:     time.Now().Add(2 * time.Hour),
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
+		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}}
 
 	var err error
-  
-  // Generate KeyPair
+
+	// Generate KeyPair
 	kp.publicKey, kp.privateKey, err = genKeyPair(ca.cert, kp.cert)
 	if err != nil {
 		return kp, fmt.Errorf("could not generate keypair: %s", err)
@@ -186,7 +188,7 @@ func (ca *CertificateAuthority) ToFile(certFile, keyFile string) error {
 // ToTempFile saves the CertificateAuthority certificate and private key to temporary files.
 // The temporary files are created in the specified directory and have random names.
 func (ca *CertificateAuthority) ToTempFile(dir string) (*os.File, *os.File, error) {
-  // Write Certificate
+	// Write Certificate
 	cfh, err := os.CreateTemp(dir, "*.cert")
 	if err != nil {
 		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %s", err)
@@ -242,7 +244,7 @@ func (kp *KeyPair) ToFile(certFile, keyFile string) error {
 // ToTempFile saves the KeyPair certificate and private key to temporary files.
 // The temporary files are created in the specified directory and have random names.
 func (kp *KeyPair) ToTempFile(dir string) (*os.File, *os.File, error) {
-  // Write Certificate
+	// Write Certificate
 	cfh, err := os.CreateTemp(dir, "*.cert")
 	if err != nil {
 		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %s", err)
@@ -324,7 +326,7 @@ func GenerateCertsToTempFile(dir string) (string, string, error) {
 // genKeyPair will generate a key and certificate from the provided Certificate and CA.
 func genKeyPair(ca *x509.Certificate, cert *x509.Certificate) (*pem.Block, *pem.Block, error) {
 	// Create a Private Key
-	key, err := rsa.GenerateKey(rand.Reader, 4096)
+	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
 		return nil, nil, fmt.Errorf("could not generate rsa key - %s", err)
 	}
@@ -335,8 +337,14 @@ func genKeyPair(ca *x509.Certificate, cert *x509.Certificate) (*pem.Block, *pem.
 		return nil, nil, fmt.Errorf("could not generate certificate - %s", err)
 	}
 
-	// Convert keys into pem.Block
+	// Convert cert into pem.Block
 	c := &pem.Block{Type: "CERTIFICATE", Bytes: certificate}
-	k := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}
+
+	// Convert key into pem.Block
+	kb, err := x509.MarshalPKCS8PrivateKey(key)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not marshal private key - %s", err)
+	}
+	k := &pem.Block{Type: "PRIVATE KEY", Bytes: kb}
 	return c, k, nil
 }
