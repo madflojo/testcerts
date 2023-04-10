@@ -348,7 +348,7 @@ func TestUsingCerts(t *testing.T) {
 	}
 
 	// Write certificates to a file
-	cert, key, err := certs.ToTempFile("/tmp/certtests/")
+	cert, key, err := certs.ToTempFile("")
 	if err != nil {
 		t.Errorf("Error writing certs to temp files - %s", err)
 	}
