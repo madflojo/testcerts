@@ -355,7 +355,7 @@ func TestUsingCerts(t *testing.T) {
 
 	// Create HTTP Server
 	server := &http.Server{
-		Addr: "0.0.0.0:443",
+		Addr: "0.0.0.0:8443",
 	}
 	defer server.Close()
 
@@ -384,7 +384,7 @@ func TestUsingCerts(t *testing.T) {
 	}
 
 	// Make an HTTPS request
-	_, err = client.Get("https://localhost")
+	_, err = client.Get("https://localhost:8443")
 	if err != nil {
 		t.Errorf("Client returned error - %s", err)
 	}
