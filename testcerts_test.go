@@ -1,6 +1,7 @@
 package testcerts
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/http"
@@ -11,10 +12,6 @@ import (
 )
 
 func TestCertsUsage(t *testing.T) {
-	// Generate Happy Path
-
-	// Generate No Domains
-
 	// Generate CA
 	ca := NewCA()
 	if len(ca.PrivateKey()) == 0 || len(ca.PublicKey()) == 0 {
@@ -344,15 +341,17 @@ func TestGenerateCertsToTempFile(t *testing.T) {
 }
 
 func TestUsingCerts(t *testing.T) {
-	// Generate Certificate Authority
-	ca := NewCA()
-
-	// Write CA Cert to File and set as System CA
-	caCert, _, err := ca.ToTempFile("/tmp/certtests/")
+	// Create a signed Certificate and Key for "localhost"
+	certs, err := NewCA().NewKeyPair("localhost")
 	if err != nil {
-		t.Errorf("Could not write CA certs to file - %s", err)
+		t.Errorf("Error generating keypair - %s", err)
 	}
-	os.Setenv("SSL_CERT_FILE", caCert.Name())
+
+	// Write certificates to a file
+	cert, key, err := certs.ToTempFile("/tmp/certtests/")
+	if err != nil {
+		t.Errorf("Error writing certs to temp files - %s", err)
+	}
 
 	// Create HTTP Server
 	server := &http.Server{
@@ -361,18 +360,6 @@ func TestUsingCerts(t *testing.T) {
 	defer server.Close()
 
 	go func() {
-		// Create a signed Certificate and Key for "localhost"
-		certs, err := ca.NewKeyPair("localhost")
-		if err != nil {
-			t.Errorf("Error generating keypair - %s", err)
-		}
-
-		// Write certificates to a file
-		cert, key, err := certs.ToTempFile("/tmp/certtests/")
-		if err != nil {
-			t.Errorf("Error writing certs to temp files - %s", err)
-		}
-
 		// Start HTTP Listener
 		err = server.ListenAndServeTLS(cert.Name(), key.Name())
 		if err != nil && err != http.ErrServerClosed {
@@ -380,10 +367,24 @@ func TestUsingCerts(t *testing.T) {
 		}
 	}()
 
-	<-time.After(5 * time.Second)
+	// Wait for Listener to start
+	<-time.After(3 * time.Second)
+
+	// Create CA Pool
+	pool := x509.NewCertPool()
+	pool.AppendCertsFromPEM(certs.PublicKey())
+
+	// Setup HTTP Client with Cert Pool
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{
+				RootCAs: pool,
+			},
+		},
+	}
 
 	// Make an HTTPS request
-	_, err = http.Get("https://localhost")
+	_, err = client.Get("https://localhost")
 	if err != nil {
 		t.Errorf("Client returned error - %s", err)
 	}
