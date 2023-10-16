@@ -349,12 +349,14 @@ func testUsingCerts(t *testing.T, rootCAs func(ca *CertificateAuthority, certs *
 	certs, err := ca.NewKeyPair("localhost")
 	if err != nil {
 		t.Errorf("Error generating keypair - %s", err)
+		return
 	}
 
 	// Write certificates to a file
 	cert, key, err := certs.ToTempFile("")
 	if err != nil {
 		t.Errorf("Error writing certs to temp files - %s", err)
+		return
 	}
 
 	// Create HTTP Server
