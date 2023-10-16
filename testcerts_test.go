@@ -375,10 +375,14 @@ func testUsingCerts(t *testing.T, rootCAs func(ca *CertificateAuthority, certs *
 	<-time.After(3 * time.Second)
 
 	// Setup HTTP Client with Cert Pool
+	certpool := rootCAs(ca, certs)
+	if certpool == nil {
+		t.Error("Test configuration resulted in nil certpool returned from rootCAs func arg")
+	}
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				RootCAs: rootCAs(ca, certs),
+				RootCAs: certpool,
 			},
 		},
 	}
