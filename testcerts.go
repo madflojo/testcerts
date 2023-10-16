@@ -154,7 +154,7 @@ func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) 
 	var privateKey *ecdsa.PrivateKey
 	kp.publicKey, privateKey, err = genKeyPair(ca.cert, ca.privateKeyEcdsa, kp.cert)
 	if err != nil {
-		return kp, fmt.Errorf("could not generate keypair: %s", err)
+		return kp, fmt.Errorf("could not generate keypair: %w", err)
 	}
 	kp.privateKey, err = keyToPemBlock(privateKey)
 	if err != nil {
@@ -184,13 +184,13 @@ func (ca *CertificateAuthority) ToFile(certFile, keyFile string) error {
 	// Write Certificate
 	err := os.WriteFile(certFile, ca.PublicKey(), 0640)
 	if err != nil {
-		return fmt.Errorf("unable to create certificate file - %s", err)
+		return fmt.Errorf("unable to create certificate file - %w", err)
 	}
 
 	// Write Key
 	err = os.WriteFile(keyFile, ca.PrivateKey(), 0640)
 	if err != nil {
-		return fmt.Errorf("unable to create certificate file - %s", err)
+		return fmt.Errorf("unable to create certificate file - %w", err)
 	}
 
 	return nil
@@ -202,7 +202,7 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 	// Write Certificate
 	cfh, err = os.CreateTemp(dir, "*.cert")
 	if err != nil {
-		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %s", err)
+		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %w", err)
 	}
 	defer func() {
 		if closeErr := cfh.Close(); closeErr != nil {
@@ -211,13 +211,13 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 	}()
 	_, err = cfh.Write(ca.PublicKey())
 	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %s", err)
+		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
 	}
 
 	// Write Key
 	kfh, err = os.CreateTemp(dir, "*.key")
 	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %s", err)
+		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
 	}
 	defer func() {
 		if closeErr := kfh.Close(); closeErr != nil {
@@ -226,7 +226,7 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 	}()
 	_, err = kfh.Write(ca.PrivateKey())
 	if err != nil {
-		return cfh, kfh, fmt.Errorf("unable to create certificate file - %s", err)
+		return cfh, kfh, fmt.Errorf("unable to create certificate file - %w", err)
 	}
 
 	return cfh, kfh, nil
@@ -248,13 +248,13 @@ func (kp *KeyPair) ToFile(certFile, keyFile string) error {
 	// Write Certificate
 	err := os.WriteFile(certFile, kp.PublicKey(), 0640)
 	if err != nil {
-		return fmt.Errorf("unable to create certificate file - %s", err)
+		return fmt.Errorf("unable to create certificate file - %w", err)
 	}
 
 	// Write Key
 	err = os.WriteFile(keyFile, kp.PrivateKey(), 0640)
 	if err != nil {
-		return fmt.Errorf("unable to create key file - %s", err)
+		return fmt.Errorf("unable to create key file - %w", err)
 	}
 
 	return nil
@@ -266,7 +266,7 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 	// Write Certificate
 	cfh, err = os.CreateTemp(dir, "*.cert")
 	if err != nil {
-		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %s", err)
+		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %w", err)
 	}
 	defer func() {
 		if closeErr := cfh.Close(); closeErr != nil {
@@ -275,13 +275,13 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 	}()
 	_, err = cfh.Write(kp.PublicKey())
 	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %s", err)
+		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
 	}
 
 	// Write Key
 	kfh, err = os.CreateTemp(dir, "*.key")
 	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create key file - %s", err)
+		return cfh, &os.File{}, fmt.Errorf("unable to create key file - %w", err)
 	}
 	defer func() {
 		if closeErr := kfh.Close(); closeErr != nil {
@@ -290,7 +290,7 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 	}()
 	_, err = kfh.Write(kp.PrivateKey())
 	if err != nil {
-		return cfh, kfh, fmt.Errorf("unable to create key file - %s", err)
+		return cfh, kfh, fmt.Errorf("unable to create key file - %w", err)
 	}
 
 	return cfh, kfh, nil
@@ -355,13 +355,13 @@ func genSelfSignedKeyPair(cert *x509.Certificate) (*pem.Block, *ecdsa.PrivateKey
 	// Create a Private Key
 	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not generate rsa key - %s", err)
+		return nil, nil, fmt.Errorf("could not generate rsa key - %w", err)
 	}
 
 	// Use CA Cert to sign and create a Public Cert
 	signedCert, err := x509.CreateCertificate(rand.Reader, cert, cert, &key.PublicKey, key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not generate self-signed certificate - %s", err)
+		return nil, nil, fmt.Errorf("could not generate self-signed certificate - %w", err)
 	}
 	return certToPemBlock(signedCert), key, err
 }
@@ -371,12 +371,12 @@ func genKeyPair(ca *x509.Certificate, caKey *ecdsa.PrivateKey, cert *x509.Certif
 	// Create a Private Key
 	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not generate rsa key - %s", err)
+		return nil, nil, fmt.Errorf("could not generate rsa key - %w", err)
 	}
 
 	signedCert, err := x509.CreateCertificate(rand.Reader, cert, ca, &key.PublicKey, caKey)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not generate self-signed certificate - %s", err)
+		return nil, nil, fmt.Errorf("could not generate self-signed certificate - %w", err)
 	}
 	return certToPemBlock(signedCert), key, nil
 }
@@ -386,7 +386,7 @@ func keyToPemBlock(key *ecdsa.PrivateKey) (*pem.Block, error) {
 	// Convert key into pem.Block
 	kb, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		return nil, fmt.Errorf("could not marshal private key - %s", err)
+		return nil, fmt.Errorf("could not marshal private key - %w", err)
 	}
 	k := &pem.Block{Type: "PRIVATE KEY", Bytes: kb}
 	return k, nil
