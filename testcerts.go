@@ -77,10 +77,11 @@ import (
 
 // CertificateAuthority represents a self-signed x509 certificate authority.
 type CertificateAuthority struct {
-	cert       *x509.Certificate
-	certPool   *x509.CertPool
-	publicKey  *pem.Block
-	privateKey *pem.Block
+	cert            *x509.Certificate
+	certPool        *x509.CertPool
+	publicKey       *pem.Block
+	privateKey      *pem.Block
+	privateKeyEcdsa *ecdsa.PrivateKey
 }
 
 // KeyPair represents a pair of self-signed x509 certificate and private key.
@@ -107,9 +108,13 @@ func NewCA() *CertificateAuthority {
 	}}
 
 	var err error
-
 	// Generate KeyPair
-	ca.publicKey, ca.privateKey, err = genKeyPair(ca.cert, ca.cert)
+	ca.publicKey, ca.privateKeyEcdsa, err = genSelfSignedKeyPair(ca.cert)
+	if err != nil {
+		// Should never error, but just incase
+		return ca
+	}
+	ca.privateKey, err = keyToPemBlock(ca.privateKeyEcdsa)
 	if err != nil {
 		// Should never error, but just incase
 		return ca
@@ -145,9 +150,14 @@ func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) 
 	var err error
 
 	// Generate KeyPair
-	kp.publicKey, kp.privateKey, err = genKeyPair(ca.cert, kp.cert)
+	var privateKey *ecdsa.PrivateKey
+	kp.publicKey, privateKey, err = genKeyPair(ca.cert, ca.privateKeyEcdsa, kp.cert)
 	if err != nil {
 		return kp, fmt.Errorf("could not generate keypair: %s", err)
+	}
+	kp.privateKey, err = keyToPemBlock(privateKey)
+	if err != nil {
+		return kp, fmt.Errorf("could not convert private key to pem block: %w", err)
 	}
 	return kp, nil
 }
@@ -269,7 +279,7 @@ func (kp *KeyPair) ToTempFile(dir string) (*os.File, *os.File, error) {
 	return cfh, kfh, nil
 }
 
-// GenerateCerts generates an x509 certificate and key.
+// GenerateCerts generates a x509 certificate and key.
 // It returns the certificate and key as byte slices, and any error that occurred.
 //
 //	cert, key, err := GenerateCerts()
@@ -292,7 +302,7 @@ func GenerateCerts(domains ...string) ([]byte, []byte, error) {
 	return kp.PublicKey(), kp.PrivateKey(), nil
 }
 
-// GenerateCertsToFile creates an x509 certificate and key and writes it to the specified file paths.
+// GenerateCertsToFile creates a x509 certificate and key and writes it to the specified file paths.
 //
 //	err := GenerateCertsToFile("/path/to/cert", "/path/to/key")
 //	if err != nil {
@@ -323,8 +333,8 @@ func GenerateCertsToTempFile(dir string) (string, string, error) {
 	return cert.Name(), key.Name(), nil
 }
 
-// genKeyPair will generate a key and certificate from the provided Certificate and CA.
-func genKeyPair(ca *x509.Certificate, cert *x509.Certificate) (*pem.Block, *pem.Block, error) {
+// genSelfSignedKeyPair will generate a key and self-signed certificate from the provided Certificate.
+func genSelfSignedKeyPair(cert *x509.Certificate) (*pem.Block, *ecdsa.PrivateKey, error) {
 	// Create a Private Key
 	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
@@ -332,19 +342,40 @@ func genKeyPair(ca *x509.Certificate, cert *x509.Certificate) (*pem.Block, *pem.
 	}
 
 	// Use CA Cert to sign and create a Public Cert
-	certificate, err := x509.CreateCertificate(rand.Reader, cert, ca, &key.PublicKey, key)
+	signedCert, err := x509.CreateCertificate(rand.Reader, cert, cert, &key.PublicKey, key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not generate certificate - %s", err)
+		return nil, nil, fmt.Errorf("could not generate self-signed certificate - %s", err)
+	}
+	return certToPemBlock(signedCert), key, err
+}
+
+// genKeyPair will generate a key and certificate from the provided Certificate and CA.
+func genKeyPair(ca *x509.Certificate, caKey *ecdsa.PrivateKey, cert *x509.Certificate) (*pem.Block, *ecdsa.PrivateKey, error) {
+	// Create a Private Key
+	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not generate rsa key - %s", err)
 	}
 
-	// Convert cert into pem.Block
-	c := &pem.Block{Type: "CERTIFICATE", Bytes: certificate}
+	signedCert, err := x509.CreateCertificate(rand.Reader, cert, ca, &key.PublicKey, caKey)
+	if err != nil {
+		return nil, nil, fmt.Errorf("could not generate self-signed certificate - %s", err)
+	}
+	return certToPemBlock(signedCert), key, nil
+}
 
+// keyToPemBlock converts the  key to a private pem.Block
+func keyToPemBlock(key *ecdsa.PrivateKey) (*pem.Block, error) {
 	// Convert key into pem.Block
 	kb, err := x509.MarshalPKCS8PrivateKey(key)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not marshal private key - %s", err)
+		return nil, fmt.Errorf("could not marshal private key - %s", err)
 	}
 	k := &pem.Block{Type: "PRIVATE KEY", Bytes: kb}
-	return c, k, nil
+	return k, nil
+}
+
+// certToPemBlock converts the certificate to a public  pem.Block
+func certToPemBlock(cert []byte) *pem.Block {
+	return &pem.Block{Type: "CERTIFICATE", Bytes: cert}
 }
