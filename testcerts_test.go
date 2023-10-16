@@ -378,6 +378,7 @@ func testUsingCerts(t *testing.T, rootCAs func(ca *CertificateAuthority, certs *
 	certpool := rootCAs(ca, certs)
 	if certpool == nil {
 		t.Error("Test configuration resulted in nil certpool returned from rootCAs func arg")
+		return
 	}
 	client := &http.Client{
 		Transport: &http.Transport{
