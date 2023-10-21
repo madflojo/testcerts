@@ -340,17 +340,23 @@ func TestGenerateCertsToTempFile(t *testing.T) {
 	})
 }
 
-func TestUsingCerts(t *testing.T) {
+// testUsingCerts is called by the two tests below. Both test setting up certificates and subsequently
+// configuring the transport of the http.Client to use the generated certificate.
+// One uses the own public key as part of the pool (self signed cert) and one uses the cert from the CA.
+func testUsingCerts(t *testing.T, rootCAs func(ca *CertificateAuthority, certs *KeyPair) *x509.CertPool) {
 	// Create a signed Certificate and Key for "localhost"
-	certs, err := NewCA().NewKeyPair("localhost")
+	ca := NewCA()
+	certs, err := ca.NewKeyPair("localhost")
 	if err != nil {
 		t.Errorf("Error generating keypair - %s", err)
+		return
 	}
 
 	// Write certificates to a file
 	cert, key, err := certs.ToTempFile("")
 	if err != nil {
 		t.Errorf("Error writing certs to temp files - %s", err)
+		return
 	}
 
 	// Create HTTP Server
@@ -370,15 +376,16 @@ func TestUsingCerts(t *testing.T) {
 	// Wait for Listener to start
 	<-time.After(3 * time.Second)
 
-	// Create CA Pool
-	pool := x509.NewCertPool()
-	pool.AppendCertsFromPEM(certs.PublicKey())
-
 	// Setup HTTP Client with Cert Pool
+	certpool := rootCAs(ca, certs)
+	if certpool == nil {
+		t.Error("Test configuration error: rootCAs arg function returned nil instead of a x509.CertPool")
+		return
+	}
 	client := &http.Client{
 		Transport: &http.Transport{
 			TLSClientConfig: &tls.Config{
-				RootCAs: pool,
+				RootCAs: certpool,
 			},
 		},
 	}
@@ -388,4 +395,18 @@ func TestUsingCerts(t *testing.T) {
 	if err != nil {
 		t.Errorf("Client returned error - %s", err)
 	}
+}
+
+func TestUsingSelfSignedCerts(t *testing.T) {
+	testUsingCerts(t, func(_ *CertificateAuthority, certs *KeyPair) *x509.CertPool {
+		pool := x509.NewCertPool()
+		pool.AppendCertsFromPEM(certs.PublicKey())
+		return pool
+	})
+}
+
+func TestUsingCertsWithCA(t *testing.T) {
+	testUsingCerts(t, func(ca *CertificateAuthority, _ *KeyPair) *x509.CertPool {
+		return ca.certPool
+	})
 }
