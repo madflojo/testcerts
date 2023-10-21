@@ -31,8 +31,7 @@ func TestCertsUsage(t *testing.T) {
 	t.Run("Write to File", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
-			t.Errorf("Error creating temporary directory: %s", err)
-			return
+			t.Fatalf("Error creating temporary directory: %s", err)
 		}
 		defer os.RemoveAll(tempDir)
 
@@ -41,19 +40,19 @@ func TestCertsUsage(t *testing.T) {
 
 		err = ca.ToFile(certPath, keyPath)
 		if err != nil {
-			t.Errorf("Error while generating certificates to files - %s", err)
+			t.Fatalf("Error while generating certificates to files - %s", err)
 		}
 
 		// Check if Cert file exists
 		_, err = os.Stat(certPath)
 		if err != nil {
-			t.Errorf("Error while generating certificates to files file error - %s", err)
+			t.Fatalf("Error while generating certificates to files file error - %s", err)
 		}
 
 		// Check if Key file exists
 		_, err = os.Stat(keyPath)
 		if err != nil {
-			t.Errorf("Error while generating certificates to files file error - %s", err)
+			t.Fatalf("Error while generating certificates to files file error - %s", err)
 		}
 	})
 
@@ -121,8 +120,7 @@ func TestCertsUsage(t *testing.T) {
 			t.Run("Write to File", func(t *testing.T) {
 				tempDir, err := os.MkdirTemp("", "")
 				if err != nil {
-					t.Errorf("Error creating temporary directory: %s", err)
-					return
+					t.Fatalf("Error creating temporary directory: %s", err)
 				}
 				defer os.RemoveAll(tempDir)
 
@@ -348,15 +346,13 @@ func testUsingCerts(t *testing.T, rootCAs func(ca *CertificateAuthority, certs *
 	ca := NewCA()
 	certs, err := ca.NewKeyPair("localhost")
 	if err != nil {
-		t.Errorf("Error generating keypair - %s", err)
-		return
+		t.Fatalf("Error generating keypair - %s", err)
 	}
 
 	// Write certificates to a file
 	cert, key, err := certs.ToTempFile("")
 	if err != nil {
-		t.Errorf("Error writing certs to temp files - %s", err)
-		return
+		t.Fatalf("Error writing certs to temp files - %s", err)
 	}
 
 	// Create HTTP Server
@@ -379,8 +375,7 @@ func testUsingCerts(t *testing.T, rootCAs func(ca *CertificateAuthority, certs *
 	// Setup HTTP Client with Cert Pool
 	certpool := rootCAs(ca, certs)
 	if certpool == nil {
-		t.Error("Test configuration error: rootCAs arg function returned nil instead of a x509.CertPool")
-		return
+		t.Fatalf("Test configuration error: rootCAs arg function returned nil instead of a x509.CertPool")
 	}
 	client := &http.Client{
 		Transport: &http.Transport{
