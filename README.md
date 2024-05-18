@@ -56,9 +56,7 @@ func TestFunc(t *testing.T) {
 	// Create a client with the self-signed CA
 	client := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: ca.CertPool(),
-			},
+			TLSClientConfig: certs.ConfigureTLSConfig(ca.GenerateTLSConfig()),
 		},
 	}
 
