@@ -367,8 +367,11 @@ func TestFullFlow(t *testing.T) {
 	}()
 
 	// Add handler
-	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, World!"))
+	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte("Hello, World!"))
+		if err != nil {
+			t.Errorf("Error writing response - %s", err)
+		}
 	})
 
 	// Wait for Listener to start
@@ -452,8 +455,11 @@ func ExampleNewCA() {
 	}()
 
 	// Add handler
-	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("Hello, World!"))
+	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, err := w.Write([]byte("Hello, World!"))
+		if err != nil {
+			fmt.Printf("Error writing response - %s", err)
+		}
 	})
 
 	// Wait for Listener to start
