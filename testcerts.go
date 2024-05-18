@@ -19,7 +19,8 @@ Stop saving test certificates in your code repos. Start generating them in your 
 		}
 	}
 
-For more complex tests, you can also use this package to create a Certificate Authority and a key pair signed by that Certificate Authority for any test domain you want.
+For more complex tests, you can also use this package to create a Certificate Authority and a key pair signed by
+that Certificate Authority for any test domain you want.
 
 	func TestFunc(t *testing.T) {
 		// Generate Certificate Authority
@@ -162,7 +163,7 @@ func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) 
 	return kp, nil
 }
 
-// CertPool returns a Certificate Pool of the CertificateAuthority Certificate
+// CertPool returns a Certificate Pool of the CertificateAuthority Certificate.
 func (ca *CertificateAuthority) CertPool() *x509.CertPool {
 	return ca.certPool
 }
@@ -399,7 +400,7 @@ func genKeyPair(ca *x509.Certificate, caKey *ecdsa.PrivateKey, cert *x509.Certif
 	return certToPemBlock(signedCert), key, nil
 }
 
-// keyToPemBlock converts the  key to a private pem.Block
+// keyToPemBlock converts the  key to a private pem.Block.
 func keyToPemBlock(key *ecdsa.PrivateKey) (*pem.Block, error) {
 	// Convert key into pem.Block
 	kb, err := x509.MarshalPKCS8PrivateKey(key)
@@ -410,7 +411,7 @@ func keyToPemBlock(key *ecdsa.PrivateKey) (*pem.Block, error) {
 	return k, nil
 }
 
-// certToPemBlock converts the certificate to a public  pem.Block
+// certToPemBlock converts the certificate to a public pem.Block.
 func certToPemBlock(cert []byte) *pem.Block {
 	return &pem.Block{Type: "CERTIFICATE", Bytes: cert}
 }

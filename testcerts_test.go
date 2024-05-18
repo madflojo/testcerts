@@ -192,10 +192,8 @@ func TestCertsUsage(t *testing.T) {
 					t.Errorf("Unexpected success with invalid tempfile directory")
 				}
 			})
-
 		})
 	}
-
 }
 
 func TestGeneratingCerts(t *testing.T) {
@@ -392,7 +390,7 @@ func TestFullFlow(t *testing.T) {
 		}
 
 		// Check the response
-		if rsp.StatusCode != 200 {
+		if rsp.StatusCode != http.StatusOK {
 			t.Errorf("Unexpected response code - %d", rsp.StatusCode)
 		}
 	})
@@ -418,7 +416,7 @@ func TestFullFlow(t *testing.T) {
 		}
 
 		// Check the response
-		if rsp.StatusCode != 200 {
+		if rsp.StatusCode != http.StatusOK {
 			t.Errorf("Unexpected response code - %d", rsp.StatusCode)
 		}
 	})
