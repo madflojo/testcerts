@@ -1,6 +1,7 @@
 package testcerts
 
 import (
+	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/http"
@@ -337,10 +338,7 @@ func TestGenerateCertsToTempFile(t *testing.T) {
 	})
 }
 
-// testUsingCerts is called by the two tests below. Both test setting up certificates and subsequently
-// configuring the transport of the http.Client to use the generated certificate.
-// One uses the own public key as part of the pool (self signed cert) and one uses the cert from the CA.
-func testUsingCerts(t *testing.T, rootCAs func(ca *CertificateAuthority, certs *KeyPair) *x509.CertPool) {
+func TestFullFlow(t *testing.T) {
 	// Create a signed Certificate and Key for "localhost"
 	ca := NewCA()
 	certs, err := ca.NewKeyPair("localhost")
@@ -368,34 +366,58 @@ func testUsingCerts(t *testing.T, rootCAs func(ca *CertificateAuthority, certs *
 		}
 	}()
 
+	// Add handler
+	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello, World!"))
+	})
+
 	// Wait for Listener to start
 	<-time.After(3 * time.Second)
 
-	// Setup HTTP Client with Cert Pool
-	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: certs.ConfigureTLSConfig(ca.GenerateTLSConfig()),
-		},
-	}
+	t.Run("TestUsingCA", func(t *testing.T) {
+		// Setup HTTP Client with Cert Pool
+		client := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: certs.ConfigureTLSConfig(ca.GenerateTLSConfig()),
+			},
+		}
 
-	// Make an HTTPS request
-	_, err = client.Get("https://localhost:8443")
-	if err != nil {
-		t.Errorf("Client returned error - %s", err)
-	}
-}
+		// Make an HTTPS request
+		rsp, err := client.Get("https://localhost:8443")
+		if err != nil {
+			t.Errorf("Client returned error - %s", err)
+		}
 
-func TestUsingSelfSignedCerts(t *testing.T) {
-	testUsingCerts(t, func(_ *CertificateAuthority, certs *KeyPair) *x509.CertPool {
+		// Check the response
+		if rsp.StatusCode != 200 {
+			t.Errorf("Unexpected response code - %d", rsp.StatusCode)
+		}
+	})
+
+	t.Run("TestUsingSelfSigned", func(t *testing.T) {
+		// Create new CertPool
 		pool := x509.NewCertPool()
 		pool.AppendCertsFromPEM(certs.PublicKey())
-		return pool
-	})
-}
 
-func TestUsingCertsWithCA(t *testing.T) {
-	testUsingCerts(t, func(ca *CertificateAuthority, _ *KeyPair) *x509.CertPool {
-		return ca.certPool
+		// Setup HTTP Client with Cert Pool
+		client := &http.Client{
+			Transport: &http.Transport{
+				TLSClientConfig: &tls.Config{
+					RootCAs: pool,
+				},
+			},
+		}
+
+		// Make an HTTPS request
+		rsp, err := client.Get("https://localhost:8443")
+		if err != nil {
+			t.Errorf("Client returned error - %s", err)
+		}
+
+		// Check the response
+		if rsp.StatusCode != 200 {
+			t.Errorf("Unexpected response code - %d", rsp.StatusCode)
+		}
 	})
 }
 
