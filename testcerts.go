@@ -48,9 +48,7 @@ For more complex tests, you can also use this package to create a Certificate Au
 		// Create a client with the self-signed CA
 		client := &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs: ca.CertPool(),
-				},
+				TLSClientConfig: certs.ConfigureTLSConfig(ca.GenerateTLSConfig()),
 			},
 		}
 
@@ -66,6 +64,7 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -232,6 +231,13 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 	return cfh, kfh, nil
 }
 
+// GenerateTLSConfig returns a tls.Config with the CertificateAuthority as the RootCA.
+func (ca *CertificateAuthority) GenerateTLSConfig() *tls.Config {
+	return &tls.Config{
+		RootCAs: ca.CertPool(),
+	}
+}
+
 // PrivateKey returns the private key of the KeyPair.
 func (kp *KeyPair) PrivateKey() []byte {
 	return pem.EncodeToMemory(kp.privateKey)
@@ -294,6 +300,18 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 	}
 
 	return cfh, kfh, nil
+}
+
+// ConfigureTLSConfig will configure the tls.Config with the KeyPair certificate and private key.
+// The returned tls.Config can be used for a server or client.
+func (kp *KeyPair) ConfigureTLSConfig(tlsConfig *tls.Config) *tls.Config {
+	tlsConfig.Certificates = []tls.Certificate{
+		{
+			Certificate: [][]byte{kp.PublicKey()},
+			PrivateKey:  kp.PrivateKey(),
+		},
+	}
+	return tlsConfig
 }
 
 // GenerateCerts generates a x509 certificate and key.

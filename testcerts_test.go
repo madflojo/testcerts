@@ -1,7 +1,6 @@
 package testcerts
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"fmt"
 	"net/http"
@@ -373,15 +372,9 @@ func testUsingCerts(t *testing.T, rootCAs func(ca *CertificateAuthority, certs *
 	<-time.After(3 * time.Second)
 
 	// Setup HTTP Client with Cert Pool
-	certpool := rootCAs(ca, certs)
-	if certpool == nil {
-		t.Fatalf("Test configuration error: rootCAs arg function returned nil instead of a x509.CertPool")
-	}
 	client := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				RootCAs: certpool,
-			},
+			TLSClientConfig: certs.ConfigureTLSConfig(ca.GenerateTLSConfig()),
 		},
 	}
 
