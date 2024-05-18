@@ -398,3 +398,61 @@ func TestUsingCertsWithCA(t *testing.T) {
 		return ca.certPool
 	})
 }
+
+func ExampleUsage() {
+	// Generate a new Certificate Authority
+	ca := NewCA()
+
+	// Create a new KeyPair with a list of domains
+	certs, err := ca.NewKeyPair("localhost")
+	if err != nil {
+		fmt.Printf("Error generating keypair - %s", err)
+	}
+
+	// Write the certificates to a file
+	cert, key, err := certs.ToTempFile("")
+	if err != nil {
+		fmt.Printf("Error writing certs to temp files - %s", err)
+	}
+
+	// Create an HTTP Server
+	server := &http.Server{
+		Addr: "0.0.0.0:8443",
+	}
+	defer server.Close()
+
+	go func() {
+		// Start HTTP Listener
+		err = server.ListenAndServeTLS(cert.Name(), key.Name())
+		if err != nil && err != http.ErrServerClosed {
+			fmt.Printf("Listener returned error - %s", err)
+		}
+	}()
+
+	// Add handler
+	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello, World!"))
+	})
+
+	// Wait for Listener to start
+	<-time.After(3 * time.Second)
+
+	// Setup HTTP Client with Cert Pool
+	client := &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: certs.ConfigureTLSConfig(ca.GenerateTLSConfig()),
+		},
+	}
+
+	// Make an HTTPS request
+	rsp, err := client.Get("https://localhost:8443")
+	if err != nil {
+		fmt.Printf("Client returned error - %s", err)
+	}
+
+	// Print the response
+	fmt.Println(rsp.Status)
+
+	// Output:
+	// 200 OK
+}
