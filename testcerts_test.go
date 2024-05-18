@@ -399,7 +399,7 @@ func TestUsingCertsWithCA(t *testing.T) {
 	})
 }
 
-func ExampleUsage() {
+func ExampleNewCA() {
 	// Generate a new Certificate Authority
 	ca := NewCA()
 
