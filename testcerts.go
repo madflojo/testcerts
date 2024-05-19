@@ -135,12 +135,36 @@ func NewCA() *CertificateAuthority {
 // NewKeyPair generates a new KeyPair signed by the CertificateAuthority for the given domains.
 // The domains are used to populate the Subject Alternative Name field of the certificate.
 func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) {
+	config := KeyPairConfig{Domains: domains}
+	if len(domains) == 0 {
+		config.Domains = []string{"localhost"}
+		config.IPAddresses = []string{"127.0.0.1", "::1"}
+	}
+	return ca.NewKeyPairFromConfig(config)
+}
+
+// NewKeyPairFromConfig generates a new KeyPair signed by the CertificateAuthority from the given configuration.
+// The configuration is used to populate the Subject Alternative Name field of the certificate.
+func (ca *CertificateAuthority) NewKeyPairFromConfig(config KeyPairConfig) (*KeyPair, error) {
+	// Validate the configuration
+	err := config.Validate()
+	if err != nil {
+		return nil, err
+	}
+
+	// Extract the IP addresses from the configuration
+	ips, err := config.IPNetAddresses()
+	if err != nil {
+		return nil, err
+	}
+
 	// Create a Certificate
 	kp := &KeyPair{cert: &x509.Certificate{
 		Subject: pkix.Name{
 			Organization: []string{"Never Use this Certificate in Production Inc."},
 		},
-		DNSNames:     domains,
+		DNSNames:     config.Domains,
+		IPAddresses:  ips,
 		SerialNumber: big.NewInt(42),
 		NotBefore:    time.Now().Add(-1 * time.Hour),
 		NotAfter:     time.Now().Add(2 * time.Hour),
@@ -148,18 +172,18 @@ func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) 
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}}
 
-	var err error
-
 	// Generate KeyPair
 	var privateKey *ecdsa.PrivateKey
 	kp.publicKey, privateKey, err = genKeyPair(ca.cert, ca.privateKeyEcdsa, kp.cert)
 	if err != nil {
 		return kp, fmt.Errorf("could not generate keypair: %w", err)
 	}
+
 	kp.privateKey, err = keyToPemBlock(privateKey)
 	if err != nil {
 		return kp, fmt.Errorf("could not convert private key to pem block: %w", err)
 	}
+
 	return kp, nil
 }
 
@@ -235,7 +259,8 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 // GenerateTLSConfig returns a tls.Config with the CertificateAuthority as the RootCA.
 func (ca *CertificateAuthority) GenerateTLSConfig() *tls.Config {
 	return &tls.Config{
-		RootCAs: ca.CertPool(),
+		RootCAs:   ca.CertPool(),
+		ClientCAs: ca.CertPool(),
 	}
 }
 
@@ -305,68 +330,13 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 
 // ConfigureTLSConfig will configure the tls.Config with the KeyPair certificate and private key.
 // The returned tls.Config can be used for a server or client.
-func (kp *KeyPair) ConfigureTLSConfig(tlsConfig *tls.Config) *tls.Config {
-	tlsConfig.Certificates = []tls.Certificate{
-		{
-			Certificate: [][]byte{kp.PublicKey()},
-			PrivateKey:  kp.PrivateKey(),
-		},
-	}
-	return tlsConfig
-}
-
-// GenerateCerts generates a x509 certificate and key.
-// It returns the certificate and key as byte slices, and any error that occurred.
-//
-//	cert, key, err := GenerateCerts()
-//	if err != nil {
-//		// handle error
-//	}
-func GenerateCerts(domains ...string) ([]byte, []byte, error) {
-	ca := NewCA()
-
-	// Returning CA for backwards compatibility
-	if len(domains) == 0 {
-		return ca.PublicKey(), ca.PrivateKey(), nil
-	}
-
-	// If domains exist return a regular cert
-	kp, err := ca.NewKeyPair(domains...)
+func (kp *KeyPair) ConfigureTLSConfig(tlsConfig *tls.Config) (*tls.Config, error) {
+	cert, err := tls.X509KeyPair(kp.PublicKey(), kp.PrivateKey())
 	if err != nil {
-		return nil, nil, err
+		return nil, fmt.Errorf("could not create x509 key pair - %w", err)
 	}
-	return kp.PublicKey(), kp.PrivateKey(), nil
-}
-
-// GenerateCertsToFile creates a x509 certificate and key and writes it to the specified file paths.
-//
-//	err := GenerateCertsToFile("/path/to/cert", "/path/to/key")
-//	if err != nil {
-//		// handle error
-//	}
-//
-// If the specified file paths already exist, it will overwrite the existing files.
-func GenerateCertsToFile(certFile, keyFile string) error {
-	// Create Certs using CA for backwards compatibility
-	return NewCA().ToFile(certFile, keyFile)
-}
-
-// GenerateCertsToTempFile will create a temporary x509 certificate and key in a randomly generated file using the
-// directory path provided. If no directory is specified, the default directory for temporary files as returned by
-// os.TempDir will be used.
-//
-//	cert, key, err := GenerateCertsToTempFile("/tmp/")
-//	if err != nil {
-//		// handle error
-//	}
-func GenerateCertsToTempFile(dir string) (string, string, error) {
-	// Create Certs using CA for backwards compatibility
-	cert, key, err := NewCA().ToTempFile(dir)
-	if err != nil {
-		return "", "", err
-	}
-
-	return cert.Name(), key.Name(), nil
+	tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+	return tlsConfig, nil
 }
 
 // genSelfSignedKeyPair will generate a key and self-signed certificate from the provided Certificate.
