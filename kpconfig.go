@@ -39,3 +39,16 @@ func (c *KeyPairConfig) Validate() error {
 
 	return nil
 }
+
+// IPAddresses returns a list of IP addresses in Net.IP format.
+func (c *KeyPairConfig) IPNetAddresses() ([]net.IP, error) {
+	var ips []net.IP
+	for _, ip := range c.IPAddresses {
+		parsed := net.ParseIP(ip)
+		if parsed == nil {
+			return nil, ErrInvalidIP
+		}
+		ips = append(ips, parsed)
+	}
+	return ips, nil
+}

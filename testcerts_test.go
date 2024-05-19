@@ -196,6 +196,102 @@ func TestCertsUsage(t *testing.T) {
 	}
 }
 
+type KeyPairConfigTestCase struct {
+	name string
+	cfg  KeyPairConfig
+	err  error
+}
+
+func TestKeyPairConfig(t *testing.T) {
+	tc := []KeyPairConfigTestCase{
+		{
+			name: "Happy Path - Simple Domain",
+			cfg: KeyPairConfig{
+				Domains: []string{"example.com"},
+			},
+			err: nil,
+		},
+		{
+			name: "Happy Path - Multiple Domains",
+			cfg: KeyPairConfig{
+				Domains: []string{"example.com", "example.org"},
+			},
+			err: nil,
+		},
+		{
+			name: "Happy Path - Multiple Domains with Wildcard",
+			cfg: KeyPairConfig{
+				Domains: []string{"example.com", "*.example.com"},
+			},
+			err: nil,
+		},
+		{
+			name: "Empty Config",
+			cfg:  KeyPairConfig{},
+			err:  ErrEmptyConfig,
+		},
+		{
+			name: "Happy Path - Valid IP",
+			cfg: KeyPairConfig{
+				IPAddresses: []string{"127.0.0.1"},
+			},
+			err: nil,
+		},
+		{
+			name: "Happy Path - Multiple Valid IPs",
+			cfg: KeyPairConfig{
+				IPAddresses: []string{"127.0.0.1", "10.0.0.0"},
+			},
+			err: nil,
+		},
+		{
+			name: "Happy Path - IPv6 Localhost",
+			cfg: KeyPairConfig{
+				IPAddresses: []string{"::1"},
+			},
+			err: nil,
+		},
+		{
+			name: "Happy Path - Multiple IPv6 Addresses",
+			cfg: KeyPairConfig{
+				IPAddresses: []string{"::1", "2001:0db8:85a3:0000:0000:8a2e:0370:7334"},
+			},
+			err: nil,
+		},
+		{
+			name: "Happy Path - Valid IP and Domain",
+			cfg: KeyPairConfig{
+				IPAddresses: []string{"127.0.0.1", "10.0.0.0"},
+				Domains:     []string{"example.com", "localhost"},
+			},
+			err: nil,
+		},
+		{
+			name: "Invalid IP",
+			cfg: KeyPairConfig{
+				IPAddresses: []string{"127.0.0.1", "not an IP"},
+			},
+			err: ErrInvalidIP,
+		},
+	}
+
+	for _, c := range tc {
+		t.Run(c.name, func(t *testing.T) {
+			certs, err := NewCA().NewKeyPairWithConfig(c.cfg)
+			if err != c.err {
+				t.Fatalf("KeyPair Generation Failed expected %v got %v", c.err, err)
+			}
+
+			// Validate Key Length
+			if err == nil {
+				if len(certs.PrivateKey()) == 0 || len(certs.PublicKey()) == 0 {
+					t.Errorf("Unexpected key length from public/private key")
+				}
+			}
+		})
+	}
+}
+
 func TestFullFlow(t *testing.T) {
 	// Create a signed Certificate and Key for "localhost"
 	ca := NewCA()
