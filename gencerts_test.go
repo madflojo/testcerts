@@ -7,10 +7,38 @@ import (
 )
 
 func TestGeneratingCerts(t *testing.T) {
-	_, _, err := GenerateCerts()
-	if err != nil {
-		t.Errorf("Error while generating certificates - %s", err)
-	}
+	t.Run("No Domain", func(t *testing.T) {
+		cert, key, err := GenerateCerts()
+		if err != nil {
+			t.Errorf("Error while generating certificates - %s", err)
+		}
+
+		if len(cert) == 0 || len(key) == 0 {
+			t.Errorf("Cert %d or Key %d is empty", len(cert), len(key))
+		}
+	})
+
+	t.Run("With Domain", func(t *testing.T) {
+		cert, key, err := GenerateCerts("example.com")
+		if err != nil {
+			t.Errorf("Error while generating certificates - %s", err)
+		}
+
+		if len(cert) == 0 || len(key) == 0 {
+			t.Errorf("Cert %d or Key %d is empty", len(cert), len(key))
+		}
+	})
+
+	t.Run("With Many Domains", func(t *testing.T) {
+		cert, key, err := GenerateCerts("example.com", "example.org", "example.net")
+		if err != nil {
+			t.Errorf("Error while generating certificates - %s", err)
+		}
+
+		if len(cert) == 0 || len(key) == 0 {
+			t.Errorf("Cert %d or Key %d is empty", len(cert), len(key))
+		}
+	})
 }
 
 func TestGeneratingCertsToFile(t *testing.T) {
