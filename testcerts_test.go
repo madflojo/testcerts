@@ -292,90 +292,156 @@ func TestKeyPairConfig(t *testing.T) {
 	}
 }
 
+type FullFlowTestCase struct {
+	name       string
+	listenAddr string
+	domains    []string
+	kpCfg      KeyPairConfig
+	kpErr      error
+}
+
 func TestFullFlow(t *testing.T) {
-	// Create a signed Certificate and Key for "localhost"
-	ca := NewCA()
-	certs, err := ca.NewKeyPair("localhost")
-	if err != nil {
-		t.Fatalf("Error generating keypair - %s", err)
-	}
 
-	// Write certificates to a file
-	cert, key, err := certs.ToTempFile("")
-	if err != nil {
-		t.Fatalf("Error writing certs to temp files - %s", err)
-	}
-
-	// Create HTTP Server
-	server := &http.Server{
-		Addr: "0.0.0.0:8443",
-	}
-	defer server.Close()
-
-	go func() {
-		// Start HTTP Listener
-		err = server.ListenAndServeTLS(cert.Name(), key.Name())
-		if err != nil && err != http.ErrServerClosed {
-			t.Errorf("Listener returned error - %s", err)
-		}
-	}()
-
-	// Add handler
-	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte("Hello, World!"))
-		if err != nil {
-			t.Errorf("Error writing response - %s", err)
-		}
-	})
-
-	// Wait for Listener to start
-	<-time.After(3 * time.Second)
-
-	t.Run("TestUsingCA", func(t *testing.T) {
-		// Setup HTTP Client with Cert Pool
-		client := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: certs.ConfigureTLSConfig(ca.GenerateTLSConfig()),
+	tc := []FullFlowTestCase{
+		{
+			name:       "Happy Path - Simple Domain",
+			listenAddr: "0.0.0.0",
+			domains:    []string{"localhost"},
+			kpCfg:      KeyPairConfig{},
+			kpErr:      nil,
+		},
+		{
+			name:       "Happy Path - Localhost IP",
+			listenAddr: "0.0.0.0",
+			kpCfg: KeyPairConfig{
+				IPAddresses: []string{"127.0.0.1"},
 			},
-		}
+			kpErr: nil,
+		},
+		{
+			name:       "Happy Path - Localhost IP and Domain",
+			listenAddr: "0.0.0.0",
+			kpCfg: KeyPairConfig{
+				IPAddresses: []string{"127.0.0.1", "::1"},
+				Domains:     []string{"localhost"},
+			},
+			kpErr: nil,
+		},
+	}
 
-		// Make an HTTPS request
-		rsp, err := client.Get("https://localhost:8443")
-		if err != nil {
-			t.Errorf("Client returned error - %s", err)
-		}
+	for _, c := range tc {
+		t.Run(c.name, func(t *testing.T) {
+			var err error
+			var cert, clientCert *KeyPair
 
-		// Check the response
-		if rsp.StatusCode != http.StatusOK {
-			t.Errorf("Unexpected response code - %d", rsp.StatusCode)
-		}
-	})
+			// Generate CA
+			ca := NewCA()
 
-	t.Run("TestUsingSelfSigned", func(t *testing.T) {
-		// Create new CertPool
-		pool := x509.NewCertPool()
-		pool.AppendCertsFromPEM(certs.PublicKey())
+			// Generate Server Cert if Domains are provided
+			if len(c.domains) > 0 {
+				cert, err = ca.NewKeyPair(c.domains...)
+				if err != c.kpErr {
+					t.Fatalf("KeyPair Generation Failed expected %v got %v", c.kpErr, err)
+				}
+				if err != nil {
+					return
+				}
+			}
 
-		// Setup HTTP Client with Cert Pool
-		client := &http.Client{
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					RootCAs: pool,
+			// Generate Server Cert with Config
+			if err = c.kpCfg.Validate(); err == nil {
+				cert, err = ca.NewKeyPairWithConfig(c.kpCfg)
+				if err != c.kpErr {
+					t.Fatalf("KeyPair Generation Failed expected %v got %v", c.kpErr, err)
+				}
+				if err != nil {
+					return
+				}
+			}
+
+			if cert == nil {
+				t.Fatalf("Test Conditions failure to generate server keypair - %s", err)
+			}
+
+			// Setup Server TLS Config
+			serverTLSConfig, err := cert.ConfigureTLSConfig(ca.GenerateTLSConfig())
+			if err != nil {
+				t.Fatalf("Error configuring server TLS - %s", err)
+			}
+
+			// Require Valid Client Cert
+			serverTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
+
+			// Generate Client Cert
+			clientCert, err = ca.NewKeyPair()
+			if err != nil {
+				t.Fatalf("Error generating client keypair - %s", err)
+			}
+
+			// Generate Client TLS Config
+			clientTLSConfig, err := clientCert.ConfigureTLSConfig(ca.GenerateTLSConfig())
+			if err != nil {
+				t.Fatalf("Error configuring client TLS - %s", err)
+			}
+
+			// Setup HTTP Server
+			server := &http.Server{
+				Addr: c.listenAddr + ":8443",
+				Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+					_, err := w.Write([]byte("Hello, World!"))
+					if err != nil {
+						t.Errorf("Error writing response - %s", err)
+					}
+				}),
+				TLSConfig: serverTLSConfig,
+			}
+			defer server.Close()
+
+			// Write Certs to Temp Files
+			certFile, keyFile, err := cert.ToTempFile("")
+			if err != nil {
+				t.Fatalf("Error writing certs to temp files - %s", err)
+			}
+
+			go func() {
+				// Start HTTP Listener
+				err = server.ListenAndServeTLS(certFile.Name(), keyFile.Name())
+				if err != nil && err != http.ErrServerClosed {
+					t.Errorf("Listener returned error - %s", err)
+				}
+			}()
+
+			// Wait for Listener to start
+			<-time.After(3 * time.Second)
+
+			// Setup HTTP Client
+			client := &http.Client{
+				Transport: &http.Transport{
+					TLSClientConfig: clientTLSConfig,
 				},
-			},
-		}
+			}
 
-		// Make an HTTPS request
-		rsp, err := client.Get("https://localhost:8443")
-		if err != nil {
-			t.Errorf("Client returned error - %s", err)
-		}
+			// Make an HTTPS request
+			var addr []string
+			addr = append(addr, c.domains...)
+			addr = append(addr, c.kpCfg.Domains...)
+			addr = append(addr, c.kpCfg.IPAddresses...)
 
-		// Check the response
-		if rsp.StatusCode != http.StatusOK {
-			t.Errorf("Unexpected response code - %d", rsp.StatusCode)
-		}
-	})
+			for _, a := range addr {
+				t.Run("Client Request to "+a, func(t *testing.T) {
+					rsp, err := client.Get("https://" + a + ":8443")
+					if err != nil {
+						t.Errorf("Client returned error - %s", err)
+					}
+
+					// Check the response
+					if rsp.StatusCode != http.StatusOK {
+						t.Errorf("Unexpected response code - %d", rsp.StatusCode)
+					}
+				})
+			}
+		})
+	}
 }
 
 func ExampleNewCA() {
@@ -419,10 +485,16 @@ func ExampleNewCA() {
 	// Wait for Listener to start
 	<-time.After(3 * time.Second)
 
+	// Client TLS Config
+	clientTLSConfig, err := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
+	if err != nil {
+		fmt.Printf("Error configuring client TLS - %s", err)
+	}
+
 	// Setup HTTP Client with Cert Pool
 	client := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: certs.ConfigureTLSConfig(ca.GenerateTLSConfig()),
+			TLSClientConfig: clientTLSConfig,
 		},
 	}
 

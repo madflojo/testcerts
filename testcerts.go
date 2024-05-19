@@ -279,7 +279,8 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 // GenerateTLSConfig returns a tls.Config with the CertificateAuthority as the RootCA.
 func (ca *CertificateAuthority) GenerateTLSConfig() *tls.Config {
 	return &tls.Config{
-		RootCAs: ca.CertPool(),
+		RootCAs:   ca.CertPool(),
+		ClientCAs: ca.CertPool(),
 	}
 }
 
@@ -349,14 +350,13 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 
 // ConfigureTLSConfig will configure the tls.Config with the KeyPair certificate and private key.
 // The returned tls.Config can be used for a server or client.
-func (kp *KeyPair) ConfigureTLSConfig(tlsConfig *tls.Config) *tls.Config {
-	tlsConfig.Certificates = []tls.Certificate{
-		{
-			Certificate: [][]byte{kp.PublicKey()},
-			PrivateKey:  kp.PrivateKey(),
-		},
+func (kp *KeyPair) ConfigureTLSConfig(tlsConfig *tls.Config) (*tls.Config, error) {
+	cert, err := tls.X509KeyPair(kp.PublicKey(), kp.PrivateKey())
+	if err != nil {
+		return nil, fmt.Errorf("could not create x509 key pair - %w", err)
 	}
-	return tlsConfig
+	tlsConfig.Certificates = append(tlsConfig.Certificates, cert)
+	return tlsConfig, nil
 }
 
 // genSelfSignedKeyPair will generate a key and self-signed certificate from the provided Certificate.
