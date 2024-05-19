@@ -135,35 +135,15 @@ func NewCA() *CertificateAuthority {
 // NewKeyPair generates a new KeyPair signed by the CertificateAuthority for the given domains.
 // The domains are used to populate the Subject Alternative Name field of the certificate.
 func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) {
-	// Create a Certificate
-	kp := &KeyPair{cert: &x509.Certificate{
-		Subject: pkix.Name{
-			Organization: []string{"Never Use this Certificate in Production Inc."},
-		},
-		DNSNames:     domains,
-		SerialNumber: big.NewInt(42),
-		NotBefore:    time.Now().Add(-1 * time.Hour),
-		NotAfter:     time.Now().Add(2 * time.Hour),
-		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
-		KeyUsage:     x509.KeyUsageDigitalSignature,
-	}}
-
-	var err error
-
-	// Generate KeyPair
-	var privateKey *ecdsa.PrivateKey
-	kp.publicKey, privateKey, err = genKeyPair(ca.cert, ca.privateKeyEcdsa, kp.cert)
-	if err != nil {
-		return kp, fmt.Errorf("could not generate keypair: %w", err)
+	config := KeyPairConfig{Domains: domains}
+	if len(domains) == 0 {
+		config.Domains = []string{"localhost"}
+		config.IPAddresses = []string{"127.0.0.1", "::1"}
 	}
-	kp.privateKey, err = keyToPemBlock(privateKey)
-	if err != nil {
-		return kp, fmt.Errorf("could not convert private key to pem block: %w", err)
-	}
-	return kp, nil
+	return ca.NewKeyPairFromConfig(config)
 }
 
-// NewKeyPairFromConfig generates a new KeyPair signed by the CertificateAuthority for the given configuration.
+// NewKeyPairFromConfig generates a new KeyPair signed by the CertificateAuthority from the given configuration.
 // The configuration is used to populate the Subject Alternative Name field of the certificate.
 func (ca *CertificateAuthority) NewKeyPairFromConfig(config KeyPairConfig) (*KeyPair, error) {
 	// Validate the configuration
