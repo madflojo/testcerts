@@ -13,12 +13,14 @@ var (
 	ErrInvalidIP = errors.New("invalid IP address")
 )
 
-// KeyPairConfig represents a configuration for generating an X509 KeyPair.
+// KeyPairConfig is a configuration for generating an X.509 key pair.
 type KeyPairConfig struct {
-	// Domains is a list of domains to include in the certificate.
+	// Domains is a list of domains to include in the certificate as Subject
+	// Alternative Names.
 	Domains []string
 
-	// IPAddresses is a list of IP addresses to include in the certificate.
+	// IPAddresses is a list of IP addresses to include in the certificate
+	// as Subject Alternative Names.
 	IPAddresses []string
 }
 

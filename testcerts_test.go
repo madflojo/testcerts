@@ -277,7 +277,7 @@ func TestKeyPairConfig(t *testing.T) {
 
 	for _, c := range tc {
 		t.Run(c.name, func(t *testing.T) {
-			certs, err := NewCA().NewKeyPairWithConfig(c.cfg)
+			certs, err := NewCA().NewKeyPairFromConfig(c.cfg)
 			if err != c.err {
 				t.Fatalf("KeyPair Generation Failed expected %v got %v", c.err, err)
 			}
@@ -304,14 +304,14 @@ func TestFullFlow(t *testing.T) {
 
 	tc := []FullFlowTestCase{
 		{
-			name:       "Happy Path - Simple Domain",
+			name:       "Localhost Domain",
 			listenAddr: "0.0.0.0",
 			domains:    []string{"localhost"},
 			kpCfg:      KeyPairConfig{},
 			kpErr:      nil,
 		},
 		{
-			name:       "Happy Path - Localhost IP",
+			name:       "Localhost IP",
 			listenAddr: "0.0.0.0",
 			kpCfg: KeyPairConfig{
 				IPAddresses: []string{"127.0.0.1"},
@@ -319,7 +319,7 @@ func TestFullFlow(t *testing.T) {
 			kpErr: nil,
 		},
 		{
-			name:       "Happy Path - Localhost IP and Domain",
+			name:       "Localhost IP and Domain",
 			listenAddr: "0.0.0.0",
 			kpCfg: KeyPairConfig{
 				IPAddresses: []string{"127.0.0.1", "::1"},
@@ -350,7 +350,7 @@ func TestFullFlow(t *testing.T) {
 
 			// Generate Server Cert with Config
 			if err = c.kpCfg.Validate(); err == nil {
-				cert, err = ca.NewKeyPairWithConfig(c.kpCfg)
+				cert, err = ca.NewKeyPairFromConfig(c.kpCfg)
 				if err != c.kpErr {
 					t.Fatalf("KeyPair Generation Failed expected %v got %v", c.kpErr, err)
 				}
@@ -378,7 +378,7 @@ func TestFullFlow(t *testing.T) {
 				t.Fatalf("Error generating client keypair - %s", err)
 			}
 
-			// Generate Client TLS Config
+			// Setup Client TLS Config
 			clientTLSConfig, err := clientCert.ConfigureTLSConfig(ca.GenerateTLSConfig())
 			if err != nil {
 				t.Fatalf("Error configuring client TLS - %s", err)
@@ -460,9 +460,25 @@ func ExampleNewCA() {
 		fmt.Printf("Error writing certs to temp files - %s", err)
 	}
 
+	// Setup Server TLS Config
+	serverTLSConfig, err := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
+	if err != nil {
+		fmt.Printf("Error configuring server TLS - %s", err)
+	}
+
+	// Require Valid Client Cert
+	serverTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
+
 	// Create an HTTP Server
 	server := &http.Server{
 		Addr: "0.0.0.0:8443",
+		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			_, err := w.Write([]byte("Hello, World!"))
+			if err != nil {
+				fmt.Printf("Error writing response - %s", err)
+			}
+		}),
+		TLSConfig: serverTLSConfig,
 	}
 	defer server.Close()
 
@@ -473,14 +489,6 @@ func ExampleNewCA() {
 			fmt.Printf("Listener returned error - %s", err)
 		}
 	}()
-
-	// Add handler
-	server.Handler = http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		_, err := w.Write([]byte("Hello, World!"))
-		if err != nil {
-			fmt.Printf("Error writing response - %s", err)
-		}
-	})
 
 	// Wait for Listener to start
 	<-time.After(3 * time.Second)

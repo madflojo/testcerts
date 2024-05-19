@@ -163,9 +163,9 @@ func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) 
 	return kp, nil
 }
 
-// NewKeyPairWithConfig generates a new KeyPair signed by the CertificateAuthority for the given configuration.
+// NewKeyPairFromConfig generates a new KeyPair signed by the CertificateAuthority for the given configuration.
 // The configuration is used to populate the Subject Alternative Name field of the certificate.
-func (ca *CertificateAuthority) NewKeyPairWithConfig(config KeyPairConfig) (*KeyPair, error) {
+func (ca *CertificateAuthority) NewKeyPairFromConfig(config KeyPairConfig) (*KeyPair, error) {
 	// Validate the configuration
 	err := config.Validate()
 	if err != nil {
