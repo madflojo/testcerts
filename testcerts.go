@@ -62,6 +62,7 @@ Simplify your testing, and don't hassle with certificates anymore.
 package testcerts
 
 import (
+	"cmp"
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
@@ -162,10 +163,11 @@ func (ca *CertificateAuthority) NewKeyPairFromConfig(config KeyPairConfig) (*Key
 	kp := &KeyPair{cert: &x509.Certificate{
 		Subject: pkix.Name{
 			Organization: []string{"Never Use this Certificate in Production Inc."},
+			CommonName:   config.CommonName,
 		},
 		DNSNames:     config.Domains,
 		IPAddresses:  ips,
-		SerialNumber: big.NewInt(42),
+		SerialNumber: cmp.Or(config.SerialNumber, big.NewInt(42)),
 		NotBefore:    time.Now().Add(-1 * time.Hour),
 		NotAfter:     time.Now().Add(2 * time.Hour),
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},
