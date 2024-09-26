@@ -2,6 +2,7 @@ package testcerts
 
 import (
 	"errors"
+	"math/big"
 	"net"
 )
 
@@ -22,6 +23,12 @@ type KeyPairConfig struct {
 	// IPAddresses is a list of IP addresses to include in the certificate
 	// as Subject Alternative Names.
 	IPAddresses []string
+
+	// SerialNumber is the serial number to use for the certificate.
+	SerialNumber *big.Int
+
+	// CommonName is the Common Name to use for the certificate.
+	CommonName string
 }
 
 // Validate validates the KeyPairConfig ensuring that it is not empty and that

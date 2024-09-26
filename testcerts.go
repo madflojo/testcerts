@@ -158,14 +158,21 @@ func (ca *CertificateAuthority) NewKeyPairFromConfig(config KeyPairConfig) (*Key
 		return nil, err
 	}
 
+	// If a serial number is provided, use it, otherwise use 42
+	serialNumber := config.SerialNumber
+	if serialNumber == nil {
+		serialNumber = big.NewInt(42)
+	}
+
 	// Create a Certificate
 	kp := &KeyPair{cert: &x509.Certificate{
 		Subject: pkix.Name{
 			Organization: []string{"Never Use this Certificate in Production Inc."},
+			CommonName:   config.CommonName,
 		},
 		DNSNames:     config.Domains,
 		IPAddresses:  ips,
-		SerialNumber: big.NewInt(42),
+		SerialNumber: serialNumber,
 		NotBefore:    time.Now().Add(-1 * time.Hour),
 		NotAfter:     time.Now().Add(2 * time.Hour),
 		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth, x509.ExtKeyUsageServerAuth},

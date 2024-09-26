@@ -4,6 +4,7 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
+	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -273,6 +274,22 @@ func TestKeyPairConfig(t *testing.T) {
 			},
 			err: ErrInvalidIP,
 		},
+		{
+			name: "Happy Path - Serial Number provided",
+			cfg: KeyPairConfig{
+				Domains:      []string{"example.com"},
+				SerialNumber: big.NewInt(123),
+			},
+			err: nil,
+		},
+		{
+			name: "Happy Path - Common Name provided",
+			cfg: KeyPairConfig{
+				Domains:    []string{"example.com"},
+				CommonName: "Example Common Name",
+			},
+			err: nil,
+		},
 	}
 
 	for _, c := range tc {
@@ -290,6 +307,34 @@ func TestKeyPairConfig(t *testing.T) {
 			}
 		})
 	}
+
+	t.Run("Serial Number is correct in Key Pair", func(t *testing.T) {
+		certs, err := NewCA().NewKeyPairFromConfig(KeyPairConfig{
+			Domains:      []string{"example.com"},
+			SerialNumber: big.NewInt(123),
+		})
+		if err != nil {
+			t.Fatalf("KeyPair Generation Failed expected nil got %v", err)
+		}
+
+		if certs.cert.SerialNumber.Cmp(big.NewInt(123)) != 0 {
+			t.Fatalf("Unexpected Serial Number expected 123 got %v", certs.cert.SerialNumber)
+		}
+	})
+
+	t.Run("Common Name is correct in Key Pair", func(t *testing.T) {
+		certs, err := NewCA().NewKeyPairFromConfig(KeyPairConfig{
+			Domains:    []string{"example.com"},
+			CommonName: "Example Common Name",
+		})
+		if err != nil {
+			t.Fatalf("KeyPair Generation Failed expected nil got %v", err)
+		}
+
+		if certs.cert.Subject.CommonName != "Example Common Name" {
+			t.Fatalf("Unexpected Common Name expected 'Example Common Name' got %v", certs.cert.Subject.CommonName)
+		}
+	})
 }
 
 type FullFlowTestCase struct {
@@ -324,6 +369,17 @@ func TestFullFlow(t *testing.T) {
 			kpCfg: KeyPairConfig{
 				IPAddresses: []string{"127.0.0.1", "::1"},
 				Domains:     []string{"localhost"},
+			},
+			kpErr: nil,
+		},
+		{
+			name:       "Localhost IP, Domain, Serial Number, and Common Name",
+			listenAddr: "0.0.0.0",
+			kpCfg: KeyPairConfig{
+				IPAddresses:  []string{"127.0.0.1", "::1"},
+				Domains:      []string{"localhost"},
+				SerialNumber: big.NewInt(123),
+				CommonName:   "Example Common Name",
 			},
 			kpErr: nil,
 		},
