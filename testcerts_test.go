@@ -19,6 +19,18 @@ func TestCertsUsage(t *testing.T) {
 		t.Errorf("Unexpected key length from public/private key")
 	}
 
+	t.Run("Verify Cert",
+		func(t *testing.T) {
+			if cert := ca.Cert(); cert == nil {
+				t.Fatalf("Expected certificate, got nil")
+			} else if cert.SerialNumber.Cmp(big.NewInt(42)) != 0 {
+				t.Errorf("Unexpected Serial Number, expected 42 got %v", cert.SerialNumber)
+			} else if cert.Subject.Organization[0] != "Never Use this Certificate in Production Inc." {
+				t.Errorf("Unexpected Organization, expected 'Never Use this Certificate in Production Inc.' got %v", cert.Subject.Organization[0])
+			}
+		},
+	)
+
 	t.Run("Verify CertPool", func(t *testing.T) {
 		cp := x509.NewCertPool()
 		if cp.AppendCertsFromPEM(ca.PublicKey()) {
@@ -111,6 +123,12 @@ func TestCertsUsage(t *testing.T) {
 			if err != nil {
 				t.Errorf("NewKeyPair() returned error when generating with domains: %s", err)
 			}
+
+			t.Run("Verify Cert", func(t *testing.T) {
+				if cert := kp.Cert(); cert == nil {
+					t.Fatalf("Expected certificate, got nil")
+				}
+			})
 
 			t.Run("Validate Key Length", func(t *testing.T) {
 				if len(kp.PrivateKey()) == 0 || len(kp.PublicKey()) == 0 {
