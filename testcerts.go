@@ -194,6 +194,11 @@ func (ca *CertificateAuthority) NewKeyPairFromConfig(config KeyPairConfig) (*Key
 	return kp, nil
 }
 
+// Cert returns the CertificateAuthority Certificate.
+func (ca *CertificateAuthority) Cert() *x509.Certificate {
+	return ca.cert
+}
+
 // CertPool returns a Certificate Pool of the CertificateAuthority Certificate.
 func (ca *CertificateAuthority) CertPool() *x509.CertPool {
 	return ca.certPool
@@ -269,6 +274,11 @@ func (ca *CertificateAuthority) GenerateTLSConfig() *tls.Config {
 		RootCAs:   ca.CertPool(),
 		ClientCAs: ca.CertPool(),
 	}
+}
+
+// Cert returns the Certificate of the KeyPair.
+func (kp *KeyPair) Cert() *x509.Certificate {
+	return kp.cert
 }
 
 // PrivateKey returns the private key of the KeyPair.
