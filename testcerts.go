@@ -179,6 +179,10 @@ func (ca *CertificateAuthority) NewKeyPairFromConfig(config KeyPairConfig) (*Key
 		KeyUsage:     x509.KeyUsageDigitalSignature,
 	}}
 
+	if config.Expired {
+		kp.cert.NotAfter = time.Now().Add(-30 * time.Minute)
+	}
+
 	// Generate KeyPair
 	var privateKey *ecdsa.PrivateKey
 	kp.publicKey, privateKey, err = genKeyPair(ca.cert, ca.privateKeyEcdsa, kp.cert)
