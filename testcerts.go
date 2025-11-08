@@ -377,7 +377,11 @@ func genSelfSignedKeyPair(cert *x509.Certificate) (*pem.Block, *ecdsa.PrivateKey
 }
 
 // genKeyPair will generate a key and certificate from the provided Certificate and CA.
-func genKeyPair(ca *x509.Certificate, caKey *ecdsa.PrivateKey, cert *x509.Certificate) (*pem.Block, *ecdsa.PrivateKey, error) {
+func genKeyPair(
+	ca *x509.Certificate,
+	caKey *ecdsa.PrivateKey,
+	cert *x509.Certificate,
+) (*pem.Block, *ecdsa.PrivateKey, error) {
 	// Create a Private Key
 	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
