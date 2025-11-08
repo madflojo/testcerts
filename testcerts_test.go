@@ -48,7 +48,9 @@ func TestCertsUsage(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Error creating temporary directory: %s", err)
 		}
-		defer os.RemoveAll(tempDir)
+		t.Cleanup(func() {
+			_ = os.RemoveAll(tempDir)
+		})
 
 		certPath := filepath.Join(tempDir, "cert")
 		keyPath := filepath.Join(tempDir, "key")
@@ -103,13 +105,17 @@ func TestCertsUsage(t *testing.T) {
 		if err != nil {
 			t.Errorf("File does not exist - %s", cert.Name())
 		}
-		defer os.Remove(cert.Name())
+		t.Cleanup(func() {
+			_ = os.Remove(cert.Name())
+		})
 
 		_, err = os.Stat(key.Name())
 		if err != nil {
 			t.Errorf("File does not exist - %s", key.Name())
 		}
-		defer os.Remove(key.Name())
+		t.Cleanup(func() {
+			_ = os.Remove(key.Name())
+		})
 	})
 
 	t.Run("Write to Invalid TempFile", func(t *testing.T) {
@@ -143,7 +149,9 @@ func TestCertsUsage(t *testing.T) {
 				if err != nil {
 					t.Fatalf("Error creating temporary directory: %s", err)
 				}
-				defer os.RemoveAll(tempDir)
+				t.Cleanup(func() {
+					_ = os.RemoveAll(tempDir)
+				})
 
 				certPath := filepath.Join(tempDir, "cert")
 				keyPath := filepath.Join(tempDir, "key")
@@ -198,13 +206,17 @@ func TestCertsUsage(t *testing.T) {
 				if err != nil {
 					t.Errorf("File does not exist - %s", cert.Name())
 				}
-				defer os.Remove(cert.Name())
+				t.Cleanup(func() {
+					_ = os.Remove(cert.Name())
+				})
 
 				_, err = os.Stat(key.Name())
 				if err != nil {
 					t.Errorf("File does not exist - %s", key.Name())
 				}
-				defer os.Remove(key.Name())
+				t.Cleanup(func() {
+					_ = os.Remove(key.Name())
+				})
 			})
 
 			t.Run("Write to Invalid TempFile", func(t *testing.T) {
@@ -482,7 +494,9 @@ func TestFullFlow(t *testing.T) {
 				}),
 				TLSConfig: serverTLSConfig,
 			}
-			defer server.Close()
+			t.Cleanup(func() {
+				_ = server.Close()
+			})
 
 			// Write Certs to Temp Files
 			certFile, keyFile, err := cert.ToTempFile("")
@@ -535,7 +549,9 @@ func TestFullFlow(t *testing.T) {
 					if rsp == nil {
 						t.Fatalf("client returned nil response without error")
 					}
-					defer rsp.Body.Close()
+					t.Cleanup(func() {
+						_ = rsp.Body.Close()
+					})
 
 					if rsp.StatusCode != http.StatusOK {
 						t.Fatalf("unexpected response code - %d", rsp.StatusCode)
@@ -582,7 +598,9 @@ func ExampleNewCA() {
 		}),
 		TLSConfig: serverTLSConfig,
 	}
-	defer server.Close()
+	defer func() {
+		_ = server.Close()
+	}()
 
 	go func() {
 		// Start HTTP Listener

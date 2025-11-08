@@ -47,7 +47,9 @@ func TestGeneratingCertsToFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error creating temporary directory: %s", err)
 		}
-		defer os.RemoveAll(tempDir)
+		t.Cleanup(func() {
+			_ = os.RemoveAll(tempDir)
+		})
 
 		certPath := filepath.Join(tempDir, "cert")
 		keyPath := filepath.Join(tempDir, "key")
@@ -75,7 +77,9 @@ func TestGeneratingCertsToFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error creating temporary directory: %s", err)
 		}
-		defer os.RemoveAll(tempDir)
+		t.Cleanup(func() {
+			_ = os.RemoveAll(tempDir)
+		})
 
 		certPath := filepath.Join(tempDir, "doesntexist", "cert")
 		keyPath := filepath.Join(tempDir, "key")
@@ -91,7 +95,9 @@ func TestGeneratingCertsToFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error creating temporary directory: %s", err)
 		}
-		defer os.RemoveAll(tempDir)
+		t.Cleanup(func() {
+			_ = os.RemoveAll(tempDir)
+		})
 
 		certPath := filepath.Join(tempDir, "cert")
 		keyPath := filepath.Join(tempDir, "doesntexist", "key")
@@ -107,7 +113,9 @@ func TestGeneratingCertsToFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error creating temp directory - %s", err)
 		}
-		defer os.RemoveAll(dir)
+		t.Cleanup(func() {
+			_ = os.RemoveAll(dir)
+		})
 
 		// Change permissions of the temp directory so that it can't be written to
 		err = os.Chmod(dir, 0444)
@@ -137,14 +145,18 @@ func TestGenerateCertsToTempFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error while generating certificates to temp files file error - %s", err)
 		}
-		_ = os.Remove(certFile)
+		t.Cleanup(func() {
+			_ = os.Remove(certFile)
+		})
 
 		// Check if Key file exists
 		_, err = os.Stat(keyFile)
 		if err != nil {
 			t.Errorf("Error while generating certificates to temp files file error - %s", err)
 		}
-		_ = os.Remove(keyFile)
+		t.Cleanup(func() {
+			_ = os.Remove(keyFile)
+		})
 	})
 
 	t.Run("Testing the unhappy path when creating cert temp file", func(t *testing.T) {
@@ -159,7 +171,9 @@ func TestGenerateCertsToTempFile(t *testing.T) {
 		if err != nil {
 			t.Errorf("Error creating temp directory - %s", err)
 		}
-		defer os.RemoveAll(dir)
+		t.Cleanup(func() {
+			_ = os.RemoveAll(dir)
+		})
 
 		// Change permissions of the temp directory so that it can't be written to
 		err = os.Chmod(dir, 0444)
