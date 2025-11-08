@@ -29,6 +29,9 @@ type KeyPairConfig struct {
 
 	// CommonName is the Common Name to use for the certificate.
 	CommonName string
+
+	// Expired creates expired certificates.
+	Expired bool
 }
 
 // Validate validates the KeyPairConfig ensuring that it is not empty and that

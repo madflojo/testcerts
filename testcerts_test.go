@@ -3,11 +3,13 @@ package testcerts
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"errors"
 	"fmt"
 	"math/big"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -361,6 +363,7 @@ type FullFlowTestCase struct {
 	domains    []string
 	kpCfg      KeyPairConfig
 	kpErr      error
+	clientErr  error
 }
 
 func TestFullFlow(t *testing.T) {
@@ -400,6 +403,16 @@ func TestFullFlow(t *testing.T) {
 				CommonName:   "Example Common Name",
 			},
 			kpErr: nil,
+		},
+		{
+			name:       "Expired certificate",
+			listenAddr: "0.0.0.0",
+			kpCfg: KeyPairConfig{
+				IPAddresses: []string{"127.0.0.1"},
+				Expired:     true,
+			},
+			kpErr:     nil,
+			clientErr: errors.New("failed to verify certificate: x509: certificate has expired or is not yet valid"),
 		},
 	}
 
@@ -504,13 +517,18 @@ func TestFullFlow(t *testing.T) {
 			for _, a := range addr {
 				t.Run("Client Request to "+a, func(t *testing.T) {
 					rsp, err := client.Get("https://" + a + ":8443")
-					if err != nil {
-						t.Errorf("Client returned error - %s", err)
-					}
-
-					// Check the response
-					if rsp.StatusCode != http.StatusOK {
-						t.Errorf("Unexpected response code - %d", rsp.StatusCode)
+					if c.clientErr == nil {
+						if err != nil {
+							t.Errorf("Client returned error - %s", err)
+						} else if rsp.StatusCode != http.StatusOK {
+							t.Errorf("Unexpected response code - %d", rsp.StatusCode)
+						}
+					} else {
+						if err == nil {
+							t.Errorf("Client doesn't return error - expected %v got %v", c.clientErr, err)
+						} else if !strings.Contains(err.Error(), c.clientErr.Error()) {
+							t.Fatalf("Client returned wrong error - expected substring %v got %v", c.clientErr, err)
+						}
 					}
 				})
 			}
