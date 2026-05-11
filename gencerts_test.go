@@ -3,6 +3,7 @@ package testcerts
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -109,6 +110,9 @@ func TestGeneratingCertsToFile(t *testing.T) {
 	})
 
 	t.Run("Testing the unhappy path for insufficient permissions", func(t *testing.T) {
+		if runtime.GOOS != "windows" && os.Geteuid() == 0 {
+			t.Skip("running as root bypasses directory permission checks")
+		}
 		dir, err := os.MkdirTemp("", "permission-test")
 		if err != nil {
 			t.Errorf("Error creating temp directory - %s", err)
@@ -167,6 +171,9 @@ func TestGenerateCertsToTempFile(t *testing.T) {
 	})
 
 	t.Run("Testing the unhappy path for insufficient permissions when creating temp file", func(t *testing.T) {
+		if runtime.GOOS != "windows" && os.Geteuid() == 0 {
+			t.Skip("running as root bypasses directory permission checks")
+		}
 		dir, err := os.MkdirTemp("", "permission-test")
 		if err != nil {
 			t.Errorf("Error creating temp directory - %s", err)
