@@ -371,35 +371,31 @@ func TestKeyPairConfig(t *testing.T) {
 }
 
 type FullFlowTestCase struct {
-	name       string
-	listenAddr string
-	domains    []string
-	kpCfg      KeyPairConfig
-	kpErr      error
-	clientErr  error
+	name      string
+	domains   []string
+	kpCfg     KeyPairConfig
+	kpErr     error
+	clientErr error
 }
 
 func TestFullFlow(t *testing.T) {
 
 	tc := []FullFlowTestCase{
 		{
-			name:       "Localhost Domain",
-			listenAddr: "0.0.0.0",
-			domains:    []string{"localhost"},
-			kpCfg:      KeyPairConfig{},
-			kpErr:      nil,
+			name:    "Localhost Domain",
+			domains: []string{"localhost"},
+			kpCfg:   KeyPairConfig{},
+			kpErr:   nil,
 		},
 		{
-			name:       "Localhost IP",
-			listenAddr: "0.0.0.0",
+			name: "Localhost IP",
 			kpCfg: KeyPairConfig{
 				IPAddresses: []string{"127.0.0.1"},
 			},
 			kpErr: nil,
 		},
 		{
-			name:       "Localhost IP and Domain",
-			listenAddr: "0.0.0.0",
+			name: "Localhost IP and Domain",
 			kpCfg: KeyPairConfig{
 				IPAddresses: []string{"127.0.0.1", "::1"},
 				Domains:     []string{"localhost"},
@@ -407,8 +403,7 @@ func TestFullFlow(t *testing.T) {
 			kpErr: nil,
 		},
 		{
-			name:       "Localhost IP, Domain, Serial Number, and Common Name",
-			listenAddr: "0.0.0.0",
+			name: "Localhost IP, Domain, Serial Number, and Common Name",
 			kpCfg: KeyPairConfig{
 				IPAddresses:  []string{"127.0.0.1", "::1"},
 				Domains:      []string{"localhost"},
@@ -418,8 +413,7 @@ func TestFullFlow(t *testing.T) {
 			kpErr: nil,
 		},
 		{
-			name:       "Expired certificate",
-			listenAddr: "0.0.0.0",
+			name: "Expired certificate",
 			kpCfg: KeyPairConfig{
 				IPAddresses: []string{"127.0.0.1"},
 				Expired:     true,
