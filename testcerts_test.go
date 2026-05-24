@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
 	"net"
 	"net/http"
@@ -119,6 +120,81 @@ func TestCertsUsage(t *testing.T) {
 		})
 	})
 
+	t.Run("Write Missing Data to File", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "")
+		if err != nil {
+			t.Fatalf("Error creating temporary directory: %s", err)
+		}
+		t.Cleanup(func() {
+			_ = os.RemoveAll(tempDir)
+		})
+
+		certPath := filepath.Join(tempDir, "cert")
+		keyPath := filepath.Join(tempDir, "key")
+
+		var emptyCA *CertificateAuthority
+		err = emptyCA.ToFile(certPath, keyPath)
+		if !errors.Is(err, ErrEmptyCertificateData) {
+			t.Fatalf("expected ErrEmptyCertificateData, got %v", err)
+		}
+		if _, statErr := os.Stat(certPath); !os.IsNotExist(statErr) {
+			t.Fatalf("expected no certificate file, got %v", statErr)
+		}
+		if _, statErr := os.Stat(keyPath); !os.IsNotExist(statErr) {
+			t.Fatalf("expected no key file, got %v", statErr)
+		}
+	})
+
+	t.Run("Reject Invalid File Data", func(t *testing.T) {
+		validCert := ca.PublicKey()
+		validKey := ca.PrivateKey()
+		for _, tc := range []struct {
+			name     string
+			certData []byte
+			keyData  []byte
+			wantErr  error
+		}{
+			{
+				name:     "invalid cert",
+				certData: []byte("not pem"),
+				keyData:  validKey,
+				wantErr:  ErrInvalidCertificateData,
+			},
+			{
+				name:     "empty key",
+				certData: validCert,
+				keyData:  nil,
+				wantErr:  ErrEmptyKeyData,
+			},
+			{
+				name:     "invalid key",
+				certData: validCert,
+				keyData:  []byte("not pem"),
+				wantErr:  ErrInvalidKeyData,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				tempDir, err := os.MkdirTemp("", "")
+				if err != nil {
+					t.Fatalf("Error creating temporary directory: %s", err)
+				}
+				t.Cleanup(func() {
+					_ = os.RemoveAll(tempDir)
+				})
+
+				err = writePairToFiles(
+					tc.certData,
+					filepath.Join(tempDir, "cert"),
+					tc.keyData,
+					filepath.Join(tempDir, "key"),
+				)
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("expected %v, got %v", tc.wantErr, err)
+				}
+			})
+		}
+	})
+
 	t.Run("Write to Invalid TempFile", func(t *testing.T) {
 		_, _, err := ca.ToTempFile("/notValidPath/")
 		if err == nil {
@@ -218,6 +294,27 @@ func TestCertsUsage(t *testing.T) {
 				t.Cleanup(func() {
 					_ = os.Remove(key.Name())
 				})
+			})
+
+			t.Run("Remove Cert When Key Write Fails", func(t *testing.T) {
+				tempDir, err := os.MkdirTemp("", "")
+				if err != nil {
+					t.Fatalf("Error creating temporary directory: %s", err)
+				}
+				t.Cleanup(func() {
+					_ = os.RemoveAll(tempDir)
+				})
+
+				certPath := filepath.Join(tempDir, "cert")
+				keyPath := filepath.Join(tempDir, "doesntexist", "key")
+
+				err = kp.ToFile(certPath, keyPath)
+				if err == nil {
+					t.Fatalf("expected key write error, got nil")
+				}
+				if _, statErr := os.Stat(certPath); !os.IsNotExist(statErr) {
+					t.Fatalf("expected certificate file cleanup, got %v", statErr)
+				}
 			})
 
 			t.Run("Write to Invalid TempFile", func(t *testing.T) {
@@ -607,8 +704,16 @@ func ExampleNewCA() {
 	serverTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 
 	// Create an HTTP Server
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		fmt.Printf("Error creating listener - %s", err)
+		return
+	}
+	defer func() {
+		_ = listener.Close()
+	}()
+
 	server := &http.Server{
-		Addr: "127.0.0.1:8443",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 			if _, writeErr := w.Write([]byte("Hello, World!")); writeErr != nil {
 				fmt.Printf("Error writing response - %s", writeErr)
@@ -620,13 +725,12 @@ func ExampleNewCA() {
 		_ = server.Close()
 	}()
 
+	serverErrCh := make(chan error, 1)
 	go func() {
 		// Start HTTP Listener
-		err = server.ListenAndServeTLS(cert.Name(), key.Name())
-		if err != nil && err != http.ErrServerClosed {
-			fmt.Printf("Listener returned error - %s", err)
-		}
+		serverErrCh <- server.ServeTLS(listener, cert.Name(), key.Name())
 	}()
+
 	// Client TLS Config
 	clientTLSConfig, err := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
 	if err != nil {
@@ -635,14 +739,19 @@ func ExampleNewCA() {
 	}
 
 	// Setup HTTP Client with Cert Pool
+	transport := &http.Transport{
+		TLSClientConfig: clientTLSConfig,
+	}
+	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, network, listener.Addr().String())
+	}
 	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: clientTLSConfig,
-		},
+		Transport: transport,
 	}
 
 	// Make an HTTPS request
-	rsp, err := client.Get("https://localhost:8443")
+	rsp, err := client.Get("https://localhost")
 	if err != nil {
 		fmt.Printf("Client returned error - %s", err)
 		return
@@ -653,6 +762,16 @@ func ExampleNewCA() {
 
 	// Print the response
 	fmt.Println(rsp.Status)
+	_, _ = io.Copy(io.Discard, rsp.Body)
+
+	if closeErr := server.Close(); closeErr != nil {
+		fmt.Printf("Error closing server - %s", closeErr)
+		return
+	}
+	if serveErr := <-serverErrCh; serveErr != nil && serveErr != http.ErrServerClosed {
+		fmt.Printf("Listener returned error - %s", serveErr)
+		return
+	}
 
 	// Output:
 	// 200 OK

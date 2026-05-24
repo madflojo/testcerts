@@ -78,6 +78,20 @@ import (
 
 const fileMode = 0640
 
+var (
+	// ErrEmptyCertificateData is returned when certificate PEM data is empty.
+	ErrEmptyCertificateData = errors.New("empty certificate data")
+
+	// ErrEmptyKeyData is returned when private key PEM data is empty.
+	ErrEmptyKeyData = errors.New("empty key data")
+
+	// ErrInvalidCertificateData is returned when certificate data is not valid PEM.
+	ErrInvalidCertificateData = errors.New("invalid certificate data")
+
+	// ErrInvalidKeyData is returned when private key data is not valid PEM.
+	ErrInvalidKeyData = errors.New("invalid key data")
+)
+
 // CertificateAuthority represents a self-signed x509 certificate authority.
 type CertificateAuthority struct {
 	cert            *x509.Certificate
@@ -227,11 +241,35 @@ func (ca *CertificateAuthority) PublicKey() []byte {
 }
 
 func writePairToFiles(certData []byte, certFile string, keyData []byte, keyFile string) error {
+	if err := validatePEMData(certData, ErrEmptyCertificateData, ErrInvalidCertificateData); err != nil {
+		return err
+	}
+	if err := validatePEMData(keyData, ErrEmptyKeyData, ErrInvalidKeyData); err != nil {
+		return err
+	}
+
 	if err := os.WriteFile(certFile, certData, fileMode); err != nil {
 		return fmt.Errorf("unable to create certificate file - %w", err)
 	}
 	if err := os.WriteFile(keyFile, keyData, fileMode); err != nil {
+		if removeErr := os.Remove(certFile); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(
+				fmt.Errorf("unable to create key file - %w", err),
+				fmt.Errorf("unable to remove certificate file after key write failure - %w", removeErr),
+			)
+		}
 		return fmt.Errorf("unable to create key file - %w", err)
+	}
+	return nil
+}
+
+func validatePEMData(data []byte, emptyErr, invalidErr error) error {
+	if len(data) == 0 {
+		return emptyErr
+	}
+	block, _ := pem.Decode(data)
+	if block == nil || len(block.Bytes) == 0 {
+		return invalidErr
 	}
 	return nil
 }
@@ -349,7 +387,8 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 	return cfh, kfh, nil
 }
 
-// ConfigureTLSConfig will configure the tls.Config with the KeyPair certificate and private key.
+// ConfigureTLSConfig configures tlsConfig with the KeyPair certificate and private key.
+// If tlsConfig is nil, it creates one. Otherwise, it mutates and returns the provided config.
 // The returned tls.Config can be used for a server or client.
 func (kp *KeyPair) ConfigureTLSConfig(tlsConfig *tls.Config) (*tls.Config, error) {
 	if tlsConfig == nil {
