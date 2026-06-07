@@ -52,7 +52,7 @@ func (c *KeyPairConfig) Validate() error {
 	return nil
 }
 
-// IPAddresses returns a list of IP addresses in Net.IP format.
+// IPNetAddresses returns a list of IP addresses in net.IP format.
 func (c *KeyPairConfig) IPNetAddresses() ([]net.IP, error) {
 	var ips []net.IP
 	for _, ip := range c.IPAddresses {

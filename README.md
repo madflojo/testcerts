@@ -11,7 +11,7 @@ Stop saving test certificates in your code repos. Start generating them in your 
 ```go
 func TestFunc(t *testing.T) {
 	// Create and write self-signed Certificate and Key to temporary files
-	cert, key, err := testcerts.GenerateToTempFile("/tmp/")
+	cert, key, err := testcerts.GenerateCertsToTempFile("/tmp/")
 	if err != nil {
 		// do something
 	}
@@ -33,20 +33,20 @@ func TestFunc(t *testing.T) {
 	// Generate Certificate Authority
 	ca := testcerts.NewCA()
 
+	// Create a signed Certificate and Key for "localhost"
+	certs, err := ca.NewKeyPair("localhost")
+	if err != nil {
+		// do something
+	}
+
+	// Write certificates to a file
+	err = certs.ToFile("/tmp/cert", "/tmp/key")
+	if err != nil {
+		// do something
+	}
+
+	// Start HTTP Listener
 	go func() {
-		// Create a signed Certificate and Key for "localhost"
-		certs, err := ca.NewKeyPair("localhost")
-		if err != nil {
-			// do something
-		}
-
-		// Write certificates to a file
-		err = certs.ToFile("/tmp/cert", "/tmp/key")
-		if err {
-			// do something
-		}
-
-		// Start HTTP Listener
 		err = http.ListenAndServeTLS("localhost:443", "/tmp/cert", "/tmp/key", someHandler)
 		if err != nil {
 			// do something
@@ -54,9 +54,14 @@ func TestFunc(t *testing.T) {
 	}()
 
 	// Create a client with the self-signed CA
+	tlsConfig, err := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
+	if err != nil {
+		// do something
+	}
+
 	client := &http.Client{
 		Transport: &http.Transport{
-			TLSClientConfig: certs.ConfigureTLSConfig(ca.GenerateTLSConfig()),
+			TLSClientConfig: tlsConfig,
 		},
 	}
 
@@ -74,6 +79,4 @@ If you find a bug or have an idea for a feature, please open an issue or a pull 
 ## License
 
 testcerts is released under the MIT License. See [LICENSE](./LICENSE) for details.
-
-
 

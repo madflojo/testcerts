@@ -76,6 +76,22 @@ import (
 	"time"
 )
 
+const fileMode = 0640
+
+var (
+	// ErrEmptyCertificateData is returned when certificate PEM data is empty.
+	ErrEmptyCertificateData = errors.New("empty certificate data")
+
+	// ErrEmptyKeyData is returned when private key PEM data is empty.
+	ErrEmptyKeyData = errors.New("empty key data")
+
+	// ErrInvalidCertificateData is returned when certificate data is not valid PEM.
+	ErrInvalidCertificateData = errors.New("invalid certificate data")
+
+	// ErrInvalidKeyData is returned when private key data is not valid PEM.
+	ErrInvalidKeyData = errors.New("invalid key data")
+)
+
 // CertificateAuthority represents a self-signed x509 certificate authority.
 type CertificateAuthority struct {
 	cert            *x509.Certificate
@@ -210,30 +226,58 @@ func (ca *CertificateAuthority) CertPool() *x509.CertPool {
 
 // PrivateKey returns the private key of the CertificateAuthority.
 func (ca *CertificateAuthority) PrivateKey() []byte {
+	if ca == nil || ca.privateKey == nil {
+		return nil
+	}
 	return pem.EncodeToMemory(ca.privateKey)
 }
 
 // PublicKey returns the public key of the CertificateAuthority.
 func (ca *CertificateAuthority) PublicKey() []byte {
+	if ca == nil || ca.publicKey == nil {
+		return nil
+	}
 	return pem.EncodeToMemory(ca.publicKey)
+}
+
+func writePairToFiles(certData []byte, certFile string, keyData []byte, keyFile string) error {
+	if err := validatePEMData(certData, ErrEmptyCertificateData, ErrInvalidCertificateData); err != nil {
+		return err
+	}
+	if err := validatePEMData(keyData, ErrEmptyKeyData, ErrInvalidKeyData); err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(certFile, certData, fileMode); err != nil {
+		return fmt.Errorf("unable to create certificate file - %w", err)
+	}
+	if err := os.WriteFile(keyFile, keyData, fileMode); err != nil {
+		if removeErr := os.Remove(certFile); removeErr != nil && !errors.Is(removeErr, os.ErrNotExist) {
+			return errors.Join(
+				fmt.Errorf("unable to create key file - %w", err),
+				fmt.Errorf("unable to remove certificate file after key write failure - %w", removeErr),
+			)
+		}
+		return fmt.Errorf("unable to create key file - %w", err)
+	}
+	return nil
+}
+
+func validatePEMData(data []byte, emptyErr, invalidErr error) error {
+	if len(data) == 0 {
+		return emptyErr
+	}
+	block, _ := pem.Decode(data)
+	if block == nil || len(block.Bytes) == 0 {
+		return invalidErr
+	}
+	return nil
 }
 
 // ToFile saves the CertificateAuthority certificate and private key to the specified files.
 // Returns an error if any file operation fails.
 func (ca *CertificateAuthority) ToFile(certFile, keyFile string) error {
-	// Write Certificate
-	err := os.WriteFile(certFile, ca.PublicKey(), 0640)
-	if err != nil {
-		return fmt.Errorf("unable to create certificate file - %w", err)
-	}
-
-	// Write Key
-	err = os.WriteFile(keyFile, ca.PrivateKey(), 0640)
-	if err != nil {
-		return fmt.Errorf("unable to create certificate file - %w", err)
-	}
-
-	return nil
+	return writePairToFiles(ca.PublicKey(), certFile, ca.PrivateKey(), keyFile)
 }
 
 // ToTempFile saves the CertificateAuthority certificate and private key to temporary files.
@@ -257,7 +301,7 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 	// Write Key
 	kfh, err = os.CreateTemp(dir, "*.key")
 	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
+		return cfh, &os.File{}, fmt.Errorf("unable to create key file - %w", err)
 	}
 	defer func() {
 		if closeErr := kfh.Close(); closeErr != nil {
@@ -266,7 +310,7 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 	}()
 	_, err = kfh.Write(ca.PrivateKey())
 	if err != nil {
-		return cfh, kfh, fmt.Errorf("unable to create certificate file - %w", err)
+		return cfh, kfh, fmt.Errorf("unable to create key file - %w", err)
 	}
 
 	return cfh, kfh, nil
@@ -287,30 +331,24 @@ func (kp *KeyPair) Cert() *x509.Certificate {
 
 // PrivateKey returns the private key of the KeyPair.
 func (kp *KeyPair) PrivateKey() []byte {
+	if kp == nil || kp.privateKey == nil {
+		return nil
+	}
 	return pem.EncodeToMemory(kp.privateKey)
 }
 
 // PublicKey returns the public key of the KeyPair.
 func (kp *KeyPair) PublicKey() []byte {
+	if kp == nil || kp.publicKey == nil {
+		return nil
+	}
 	return pem.EncodeToMemory(kp.publicKey)
 }
 
 // ToFile saves the KeyPair certificate and private key to the specified files.
 // Returns an error if any file operation fails.
 func (kp *KeyPair) ToFile(certFile, keyFile string) error {
-	// Write Certificate
-	err := os.WriteFile(certFile, kp.PublicKey(), 0640)
-	if err != nil {
-		return fmt.Errorf("unable to create certificate file - %w", err)
-	}
-
-	// Write Key
-	err = os.WriteFile(keyFile, kp.PrivateKey(), 0640)
-	if err != nil {
-		return fmt.Errorf("unable to create key file - %w", err)
-	}
-
-	return nil
+	return writePairToFiles(kp.PublicKey(), certFile, kp.PrivateKey(), keyFile)
 }
 
 // ToTempFile saves the KeyPair certificate and private key to temporary files.
@@ -349,9 +387,13 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 	return cfh, kfh, nil
 }
 
-// ConfigureTLSConfig will configure the tls.Config with the KeyPair certificate and private key.
+// ConfigureTLSConfig configures tlsConfig with the KeyPair certificate and private key.
+// If tlsConfig is nil, it creates one. Otherwise, it mutates and returns the provided config.
 // The returned tls.Config can be used for a server or client.
 func (kp *KeyPair) ConfigureTLSConfig(tlsConfig *tls.Config) (*tls.Config, error) {
+	if tlsConfig == nil {
+		tlsConfig = &tls.Config{}
+	}
 	cert, err := tls.X509KeyPair(kp.PublicKey(), kp.PrivateKey())
 	if err != nil {
 		return nil, fmt.Errorf("could not create x509 key pair - %w", err)

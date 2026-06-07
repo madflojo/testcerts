@@ -1,17 +1,19 @@
 package testcerts
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"errors"
 	"fmt"
+	"io"
 	"math/big"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestCertsUsage(t *testing.T) {
@@ -118,6 +120,81 @@ func TestCertsUsage(t *testing.T) {
 		})
 	})
 
+	t.Run("Write Missing Data to File", func(t *testing.T) {
+		tempDir, err := os.MkdirTemp("", "")
+		if err != nil {
+			t.Fatalf("Error creating temporary directory: %s", err)
+		}
+		t.Cleanup(func() {
+			_ = os.RemoveAll(tempDir)
+		})
+
+		certPath := filepath.Join(tempDir, "cert")
+		keyPath := filepath.Join(tempDir, "key")
+
+		var emptyCA *CertificateAuthority
+		err = emptyCA.ToFile(certPath, keyPath)
+		if !errors.Is(err, ErrEmptyCertificateData) {
+			t.Fatalf("expected ErrEmptyCertificateData, got %v", err)
+		}
+		if _, statErr := os.Stat(certPath); !os.IsNotExist(statErr) {
+			t.Fatalf("expected no certificate file, got %v", statErr)
+		}
+		if _, statErr := os.Stat(keyPath); !os.IsNotExist(statErr) {
+			t.Fatalf("expected no key file, got %v", statErr)
+		}
+	})
+
+	t.Run("Reject Invalid File Data", func(t *testing.T) {
+		validCert := ca.PublicKey()
+		validKey := ca.PrivateKey()
+		for _, tc := range []struct {
+			name     string
+			certData []byte
+			keyData  []byte
+			wantErr  error
+		}{
+			{
+				name:     "invalid cert",
+				certData: []byte("not pem"),
+				keyData:  validKey,
+				wantErr:  ErrInvalidCertificateData,
+			},
+			{
+				name:     "empty key",
+				certData: validCert,
+				keyData:  nil,
+				wantErr:  ErrEmptyKeyData,
+			},
+			{
+				name:     "invalid key",
+				certData: validCert,
+				keyData:  []byte("not pem"),
+				wantErr:  ErrInvalidKeyData,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				tempDir, err := os.MkdirTemp("", "")
+				if err != nil {
+					t.Fatalf("Error creating temporary directory: %s", err)
+				}
+				t.Cleanup(func() {
+					_ = os.RemoveAll(tempDir)
+				})
+
+				err = writePairToFiles(
+					tc.certData,
+					filepath.Join(tempDir, "cert"),
+					tc.keyData,
+					filepath.Join(tempDir, "key"),
+				)
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("expected %v, got %v", tc.wantErr, err)
+				}
+			})
+		}
+	})
+
 	t.Run("Write to Invalid TempFile", func(t *testing.T) {
 		_, _, err := ca.ToTempFile("/notValidPath/")
 		if err == nil {
@@ -217,6 +294,27 @@ func TestCertsUsage(t *testing.T) {
 				t.Cleanup(func() {
 					_ = os.Remove(key.Name())
 				})
+			})
+
+			t.Run("Remove Cert When Key Write Fails", func(t *testing.T) {
+				tempDir, err := os.MkdirTemp("", "")
+				if err != nil {
+					t.Fatalf("Error creating temporary directory: %s", err)
+				}
+				t.Cleanup(func() {
+					_ = os.RemoveAll(tempDir)
+				})
+
+				certPath := filepath.Join(tempDir, "cert")
+				keyPath := filepath.Join(tempDir, "doesntexist", "key")
+
+				err = kp.ToFile(certPath, keyPath)
+				if err == nil {
+					t.Fatalf("expected key write error, got nil")
+				}
+				if _, statErr := os.Stat(certPath); !os.IsNotExist(statErr) {
+					t.Fatalf("expected certificate file cleanup, got %v", statErr)
+				}
 			})
 
 			t.Run("Write to Invalid TempFile", func(t *testing.T) {
@@ -370,35 +468,31 @@ func TestKeyPairConfig(t *testing.T) {
 }
 
 type FullFlowTestCase struct {
-	name       string
-	listenAddr string
-	domains    []string
-	kpCfg      KeyPairConfig
-	kpErr      error
-	clientErr  error
+	name      string
+	domains   []string
+	kpCfg     KeyPairConfig
+	kpErr     error
+	clientErr error
 }
 
 func TestFullFlow(t *testing.T) {
 
 	tc := []FullFlowTestCase{
 		{
-			name:       "Localhost Domain",
-			listenAddr: "0.0.0.0",
-			domains:    []string{"localhost"},
-			kpCfg:      KeyPairConfig{},
-			kpErr:      nil,
+			name:    "Localhost Domain",
+			domains: []string{"localhost"},
+			kpCfg:   KeyPairConfig{},
+			kpErr:   nil,
 		},
 		{
-			name:       "Localhost IP",
-			listenAddr: "0.0.0.0",
+			name: "Localhost IP",
 			kpCfg: KeyPairConfig{
 				IPAddresses: []string{"127.0.0.1"},
 			},
 			kpErr: nil,
 		},
 		{
-			name:       "Localhost IP and Domain",
-			listenAddr: "0.0.0.0",
+			name: "Localhost IP and Domain",
 			kpCfg: KeyPairConfig{
 				IPAddresses: []string{"127.0.0.1", "::1"},
 				Domains:     []string{"localhost"},
@@ -406,8 +500,7 @@ func TestFullFlow(t *testing.T) {
 			kpErr: nil,
 		},
 		{
-			name:       "Localhost IP, Domain, Serial Number, and Common Name",
-			listenAddr: "0.0.0.0",
+			name: "Localhost IP, Domain, Serial Number, and Common Name",
 			kpCfg: KeyPairConfig{
 				IPAddresses:  []string{"127.0.0.1", "::1"},
 				Domains:      []string{"localhost"},
@@ -417,8 +510,7 @@ func TestFullFlow(t *testing.T) {
 			kpErr: nil,
 		},
 		{
-			name:       "Expired certificate",
-			listenAddr: "0.0.0.0",
+			name: "Expired certificate",
 			kpCfg: KeyPairConfig{
 				IPAddresses: []string{"127.0.0.1"},
 				Expired:     true,
@@ -484,12 +576,18 @@ func TestFullFlow(t *testing.T) {
 			}
 
 			// Setup HTTP Server
+			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			if err != nil {
+				t.Fatalf("Error creating listener - %s", err)
+			}
+			t.Cleanup(func() {
+				_ = listener.Close()
+			})
+
 			server := &http.Server{
-				Addr: c.listenAddr + ":8443",
 				Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-					_, err := w.Write([]byte("Hello, World!"))
-					if err != nil {
-						t.Errorf("Error writing response - %s", err)
+					if _, writeErr := w.Write([]byte("Hello, World!")); writeErr != nil {
+						t.Errorf("Error writing response - %s", writeErr)
 					}
 				}),
 				TLSConfig: serverTLSConfig,
@@ -504,22 +602,22 @@ func TestFullFlow(t *testing.T) {
 				t.Fatalf("Error writing certs to temp files - %s", err)
 			}
 
+			serverErrCh := make(chan error, 1)
 			go func() {
 				// Start HTTP Listener
-				err = server.ListenAndServeTLS(certFile.Name(), keyFile.Name())
-				if err != nil && err != http.ErrServerClosed {
-					t.Errorf("Listener returned error - %s", err)
-				}
+				serverErrCh <- server.ServeTLS(listener, certFile.Name(), keyFile.Name())
 			}()
 
-			// Wait for Listener to start
-			<-time.After(3 * time.Second)
-
 			// Setup HTTP Client
+			baseTransport := &http.Transport{
+				TLSClientConfig: clientTLSConfig,
+			}
+			baseTransport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+				var d net.Dialer
+				return d.DialContext(ctx, network, listener.Addr().String())
+			}
 			client := &http.Client{
-				Transport: &http.Transport{
-					TLSClientConfig: clientTLSConfig,
-				},
+				Transport: baseTransport,
 			}
 
 			// Make an HTTPS request
@@ -530,7 +628,15 @@ func TestFullFlow(t *testing.T) {
 
 			for _, a := range addr {
 				t.Run("Client Request to "+a, func(t *testing.T) {
-					rsp, err := client.Get("https://" + a + ":8443")
+					host := a
+					if strings.Contains(a, ":") {
+						host = "[" + a + "]"
+					}
+					req, reqErr := http.NewRequest(http.MethodGet, "https://"+host, nil)
+					if reqErr != nil {
+						t.Fatalf("could not create request: %v", reqErr)
+					}
+					rsp, err := client.Do(req)
 
 					if err != nil && c.clientErr == nil {
 						t.Fatalf("client returned unexpected error: %v", err)
@@ -558,6 +664,13 @@ func TestFullFlow(t *testing.T) {
 					}
 				})
 			}
+
+			if closeErr := server.Close(); closeErr != nil {
+				t.Errorf("error closing server: %v", closeErr)
+			}
+			if serveErr := <-serverErrCh; serveErr != nil && serveErr != http.ErrServerClosed {
+				t.Errorf("Listener returned error - %s", serveErr)
+			}
 		})
 	}
 }
@@ -570,30 +683,40 @@ func ExampleNewCA() {
 	certs, err := ca.NewKeyPair("localhost")
 	if err != nil {
 		fmt.Printf("Error generating keypair - %s", err)
+		return
 	}
 
 	// Write the certificates to a file
 	cert, key, err := certs.ToTempFile("")
 	if err != nil {
 		fmt.Printf("Error writing certs to temp files - %s", err)
+		return
 	}
 
 	// Setup Server TLS Config
 	serverTLSConfig, err := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
 	if err != nil {
 		fmt.Printf("Error configuring server TLS - %s", err)
+		return
 	}
 
 	// Require Valid Client Cert
 	serverTLSConfig.ClientAuth = tls.RequireAndVerifyClientCert
 
 	// Create an HTTP Server
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		fmt.Printf("Error creating listener - %s", err)
+		return
+	}
+	defer func() {
+		_ = listener.Close()
+	}()
+
 	server := &http.Server{
-		Addr: "0.0.0.0:8443",
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-			_, err := w.Write([]byte("Hello, World!"))
-			if err != nil {
-				fmt.Printf("Error writing response - %s", err)
+			if _, writeErr := w.Write([]byte("Hello, World!")); writeErr != nil {
+				fmt.Printf("Error writing response - %s", writeErr)
 			}
 		}),
 		TLSConfig: serverTLSConfig,
@@ -602,38 +725,53 @@ func ExampleNewCA() {
 		_ = server.Close()
 	}()
 
+	serverErrCh := make(chan error, 1)
 	go func() {
 		// Start HTTP Listener
-		err = server.ListenAndServeTLS(cert.Name(), key.Name())
-		if err != nil && err != http.ErrServerClosed {
-			fmt.Printf("Listener returned error - %s", err)
-		}
+		serverErrCh <- server.ServeTLS(listener, cert.Name(), key.Name())
 	}()
-
-	// Wait for Listener to start
-	<-time.After(3 * time.Second)
 
 	// Client TLS Config
 	clientTLSConfig, err := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
 	if err != nil {
 		fmt.Printf("Error configuring client TLS - %s", err)
+		return
 	}
 
 	// Setup HTTP Client with Cert Pool
+	transport := &http.Transport{
+		TLSClientConfig: clientTLSConfig,
+	}
+	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		var d net.Dialer
+		return d.DialContext(ctx, network, listener.Addr().String())
+	}
 	client := &http.Client{
-		Transport: &http.Transport{
-			TLSClientConfig: clientTLSConfig,
-		},
+		Transport: transport,
 	}
 
 	// Make an HTTPS request
-	rsp, err := client.Get("https://localhost:8443")
+	rsp, err := client.Get("https://localhost")
 	if err != nil {
 		fmt.Printf("Client returned error - %s", err)
+		return
 	}
+	defer func() {
+		_ = rsp.Body.Close()
+	}()
 
 	// Print the response
 	fmt.Println(rsp.Status)
+	_, _ = io.Copy(io.Discard, rsp.Body)
+
+	if closeErr := server.Close(); closeErr != nil {
+		fmt.Printf("Error closing server - %s", closeErr)
+		return
+	}
+	if serveErr := <-serverErrCh; serveErr != nil && serveErr != http.ErrServerClosed {
+		fmt.Printf("Listener returned error - %s", serveErr)
+		return
+	}
 
 	// Output:
 	// 200 OK
