@@ -7,13 +7,22 @@ on:
       id: rotation
       run: |
         week="$(date -u +%V)"
-        test "$((10#$week % 2))" -eq 0
+        if [ "$((10#$week % 2))" -eq 0 ]; then
+          echo "active=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "active=false" >> "$GITHUB_OUTPUT"
+        fi
   skip-if-match:
     query: 'is:pr is:open in:body "code-hunters-origin"'
     # Default total-open limit. Change only through explicit operator configuration.
     max: 10
 
-if: github.event_name == 'workflow_dispatch' || needs.pre_activation.outputs.rotation_result == 'success'
+if: github.event_name == 'workflow_dispatch' || needs.pre_activation.outputs.rotation_active == 'true'
+
+jobs:
+  pre-activation:
+    outputs:
+      rotation_active: ${{ steps.rotation.outputs.active }}
 
 concurrency:
   group: code-hunters-testing-hunter
