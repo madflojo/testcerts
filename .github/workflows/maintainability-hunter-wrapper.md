@@ -2,10 +2,18 @@
 on:
   schedule: weekly on wednesday
   workflow_dispatch:
+  steps:
+    - name: Select alternating hunter cohort
+      id: rotation
+      run: |
+        week="$(date -u +%V)"
+        test "$((10#$week % 2))" -eq 1
   skip-if-match:
     query: 'is:pr is:open in:body "code-hunters-origin"'
     # Default total-open limit. Change only through explicit operator configuration.
     max: 10
+
+if: github.event_name == 'workflow_dispatch' || needs.pre_activation.outputs.rotation_result == 'success'
 
 concurrency:
   group: code-hunters-maintainability-hunter
