@@ -13,7 +13,7 @@ on:
           echo "active=false" >> "$GITHUB_OUTPUT"
         fi
   skip-if-match:
-    query: 'is:pr is:open in:body "code-hunters-origin"'
+    query: 'is:pr is:open author:app/github-actions in:body "code-hunters-origin"'
     # Default total-open limit. Change only through explicit operator configuration.
     max: 10
 
@@ -25,7 +25,7 @@ jobs:
       rotation_active: ${{ steps.rotation.outputs.active }}
 
 concurrency:
-  group: code-hunters-bug-hunter
+  group: code-hunters
   cancel-in-progress: false
 
 imports:

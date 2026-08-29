@@ -243,7 +243,7 @@ try (InputStream in = Files.newInputStream(path)) {
 }
 ```
 
-### Preserve a valid zero value
+### Preserve a valid zero value in Python
 
 When zero explicitly disables retries, truthiness incorrectly replaces a valid value. A regression test must prove both zero and missing-value behavior.
 
