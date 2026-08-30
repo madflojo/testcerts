@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestCertsUsage(t *testing.T) {
@@ -449,6 +450,33 @@ func TestKeyPairConfig(t *testing.T) {
 
 		if certs.cert.SerialNumber.Cmp(big.NewInt(123)) != 0 {
 			t.Fatalf("Unexpected Serial Number expected 123 got %v", certs.cert.SerialNumber)
+		}
+	})
+
+	t.Run("Expired is false by default, NotAfter is in the future", func(t *testing.T) {
+		certs, err := NewCA().NewKeyPairFromConfig(KeyPairConfig{
+			Domains: []string{"example.com"},
+		})
+		if err != nil {
+			t.Fatalf("KeyPair Generation Failed expected nil got %v", err)
+		}
+
+		if !certs.cert.NotAfter.After(time.Now()) {
+			t.Fatalf("Expected NotAfter to be in the future, got %v", certs.cert.NotAfter)
+		}
+	})
+
+	t.Run("Expired true produces a certificate with NotAfter in the past", func(t *testing.T) {
+		certs, err := NewCA().NewKeyPairFromConfig(KeyPairConfig{
+			Domains: []string{"example.com"},
+			Expired: true,
+		})
+		if err != nil {
+			t.Fatalf("KeyPair Generation Failed expected nil got %v", err)
+		}
+
+		if !certs.cert.NotAfter.Before(time.Now()) {
+			t.Fatalf("Expected NotAfter to be in the past for expired cert, got %v", certs.cert.NotAfter)
 		}
 	})
 
