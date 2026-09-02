@@ -263,6 +263,42 @@ func writePairToFiles(certData []byte, certFile string, keyData []byte, keyFile 
 	return nil
 }
 
+// writePairToTempFiles writes certData and keyData to newly created temporary files in dir,
+// returning the open file handles for the certificate and key respectively.
+func writePairToTempFiles(certData, keyData []byte, dir string) (cfh *os.File, kfh *os.File, err error) {
+	// Write Certificate
+	cfh, err = os.CreateTemp(dir, "*.cert")
+	if err != nil {
+		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %w", err)
+	}
+	defer func() {
+		if closeErr := cfh.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
+	_, err = cfh.Write(certData)
+	if err != nil {
+		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
+	}
+
+	// Write Key
+	kfh, err = os.CreateTemp(dir, "*.key")
+	if err != nil {
+		return cfh, &os.File{}, fmt.Errorf("unable to create key file - %w", err)
+	}
+	defer func() {
+		if closeErr := kfh.Close(); closeErr != nil {
+			err = errors.Join(err, closeErr)
+		}
+	}()
+	_, err = kfh.Write(keyData)
+	if err != nil {
+		return cfh, kfh, fmt.Errorf("unable to create key file - %w", err)
+	}
+
+	return cfh, kfh, nil
+}
+
 func validatePEMData(data []byte, emptyErr, invalidErr error) error {
 	if len(data) == 0 {
 		return emptyErr
@@ -283,37 +319,7 @@ func (ca *CertificateAuthority) ToFile(certFile, keyFile string) error {
 // ToTempFile saves the CertificateAuthority certificate and private key to temporary files.
 // The temporary files are created in the specified directory and have random names.
 func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error) {
-	// Write Certificate
-	cfh, err = os.CreateTemp(dir, "*.cert")
-	if err != nil {
-		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %w", err)
-	}
-	defer func() {
-		if closeErr := cfh.Close(); closeErr != nil {
-			err = errors.Join(err, closeErr)
-		}
-	}()
-	_, err = cfh.Write(ca.PublicKey())
-	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
-	}
-
-	// Write Key
-	kfh, err = os.CreateTemp(dir, "*.key")
-	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create key file - %w", err)
-	}
-	defer func() {
-		if closeErr := kfh.Close(); closeErr != nil {
-			err = errors.Join(err, closeErr)
-		}
-	}()
-	_, err = kfh.Write(ca.PrivateKey())
-	if err != nil {
-		return cfh, kfh, fmt.Errorf("unable to create key file - %w", err)
-	}
-
-	return cfh, kfh, nil
+	return writePairToTempFiles(ca.PublicKey(), ca.PrivateKey(), dir)
 }
 
 // GenerateTLSConfig returns a tls.Config with the CertificateAuthority as the RootCA.
@@ -354,37 +360,7 @@ func (kp *KeyPair) ToFile(certFile, keyFile string) error {
 // ToTempFile saves the KeyPair certificate and private key to temporary files.
 // The temporary files are created in the specified directory and have random names.
 func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error) {
-	// Write Certificate
-	cfh, err = os.CreateTemp(dir, "*.cert")
-	if err != nil {
-		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %w", err)
-	}
-	defer func() {
-		if closeErr := cfh.Close(); closeErr != nil {
-			err = errors.Join(err, closeErr)
-		}
-	}()
-	_, err = cfh.Write(kp.PublicKey())
-	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
-	}
-
-	// Write Key
-	kfh, err = os.CreateTemp(dir, "*.key")
-	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create key file - %w", err)
-	}
-	defer func() {
-		if closeErr := kfh.Close(); closeErr != nil {
-			err = errors.Join(err, closeErr)
-		}
-	}()
-	_, err = kfh.Write(kp.PrivateKey())
-	if err != nil {
-		return cfh, kfh, fmt.Errorf("unable to create key file - %w", err)
-	}
-
-	return cfh, kfh, nil
+	return writePairToTempFiles(kp.PublicKey(), kp.PrivateKey(), dir)
 }
 
 // ConfigureTLSConfig configures tlsConfig with the KeyPair certificate and private key.
