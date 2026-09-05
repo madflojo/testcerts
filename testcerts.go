@@ -241,10 +241,10 @@ func (ca *CertificateAuthority) PublicKey() []byte {
 }
 
 func writePairToFiles(certData []byte, certFile string, keyData []byte, keyFile string) error {
-	if err := validatePEMData(certData, ErrEmptyCertificateData, ErrInvalidCertificateData); err != nil {
+	if err := validateCertificateData(certData); err != nil {
 		return err
 	}
-	if err := validatePEMData(keyData, ErrEmptyKeyData, ErrInvalidKeyData); err != nil {
+	if err := validateKeyData(keyData); err != nil {
 		return err
 	}
 
@@ -299,15 +299,29 @@ func writePairToTempFiles(certData, keyData []byte, dir string) (cfh *os.File, k
 	return cfh, kfh, nil
 }
 
-func validatePEMData(data []byte, emptyErr, invalidErr error) error {
+func validateCertificateData(data []byte) error {
 	if len(data) == 0 {
-		return emptyErr
+		return ErrEmptyCertificateData
 	}
-	block, _ := pem.Decode(data)
-	if block == nil || len(block.Bytes) == 0 {
-		return invalidErr
+	if !isValidPEMData(data) {
+		return ErrInvalidCertificateData
 	}
 	return nil
+}
+
+func validateKeyData(data []byte) error {
+	if len(data) == 0 {
+		return ErrEmptyKeyData
+	}
+	if !isValidPEMData(data) {
+		return ErrInvalidKeyData
+	}
+	return nil
+}
+
+func isValidPEMData(data []byte) bool {
+	block, _ := pem.Decode(data)
+	return block != nil && len(block.Bytes) > 0
 }
 
 // ToFile saves the CertificateAuthority certificate and private key to the specified files.
