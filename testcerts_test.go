@@ -203,6 +203,14 @@ func TestCertsUsage(t *testing.T) {
 		}
 	})
 
+	t.Run("Write Missing Data to TempFile", func(t *testing.T) {
+		var emptyCA *CertificateAuthority
+		_, _, err := emptyCA.ToTempFile("")
+		if !errors.Is(err, ErrEmptyCertificateData) {
+			t.Fatalf("expected ErrEmptyCertificateData, got %v", err)
+		}
+	})
+
 	for _, domains := range [][]string{{"localhost", "127.0.0.1", "example.com"}, {}} {
 		t.Run(fmt.Sprintf("Generate KeyPair with %d Domains", len(domains)), func(t *testing.T) {
 			kp, err := ca.NewKeyPair(domains...)
@@ -322,6 +330,14 @@ func TestCertsUsage(t *testing.T) {
 				_, _, err := kp.ToTempFile("/notValidPath/")
 				if err == nil {
 					t.Errorf("Unexpected success with invalid tempfile directory")
+				}
+			})
+
+			t.Run("Write Missing Data to TempFile", func(t *testing.T) {
+				var emptyKP *KeyPair
+				_, _, err := emptyKP.ToTempFile("")
+				if !errors.Is(err, ErrEmptyCertificateData) {
+					t.Fatalf("expected ErrEmptyCertificateData, got %v", err)
 				}
 			})
 		})

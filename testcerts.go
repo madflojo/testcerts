@@ -283,6 +283,15 @@ func (ca *CertificateAuthority) ToFile(certFile, keyFile string) error {
 // ToTempFile saves the CertificateAuthority certificate and private key to temporary files.
 // The temporary files are created in the specified directory and have random names.
 func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error) {
+	certData := ca.PublicKey()
+	keyData := ca.PrivateKey()
+	if err = validatePEMData(certData, ErrEmptyCertificateData, ErrInvalidCertificateData); err != nil {
+		return &os.File{}, &os.File{}, err
+	}
+	if err = validatePEMData(keyData, ErrEmptyKeyData, ErrInvalidKeyData); err != nil {
+		return &os.File{}, &os.File{}, err
+	}
+
 	// Write Certificate
 	cfh, err = os.CreateTemp(dir, "*.cert")
 	if err != nil {
@@ -293,7 +302,7 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 			err = errors.Join(err, closeErr)
 		}
 	}()
-	_, err = cfh.Write(ca.PublicKey())
+	_, err = cfh.Write(certData)
 	if err != nil {
 		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
 	}
@@ -308,7 +317,7 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 			err = errors.Join(err, closeErr)
 		}
 	}()
-	_, err = kfh.Write(ca.PrivateKey())
+	_, err = kfh.Write(keyData)
 	if err != nil {
 		return cfh, kfh, fmt.Errorf("unable to create key file - %w", err)
 	}
@@ -354,6 +363,15 @@ func (kp *KeyPair) ToFile(certFile, keyFile string) error {
 // ToTempFile saves the KeyPair certificate and private key to temporary files.
 // The temporary files are created in the specified directory and have random names.
 func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error) {
+	certData := kp.PublicKey()
+	keyData := kp.PrivateKey()
+	if err = validatePEMData(certData, ErrEmptyCertificateData, ErrInvalidCertificateData); err != nil {
+		return &os.File{}, &os.File{}, err
+	}
+	if err = validatePEMData(keyData, ErrEmptyKeyData, ErrInvalidKeyData); err != nil {
+		return &os.File{}, &os.File{}, err
+	}
+
 	// Write Certificate
 	cfh, err = os.CreateTemp(dir, "*.cert")
 	if err != nil {
@@ -364,7 +382,7 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 			err = errors.Join(err, closeErr)
 		}
 	}()
-	_, err = cfh.Write(kp.PublicKey())
+	_, err = cfh.Write(certData)
 	if err != nil {
 		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
 	}
@@ -379,7 +397,7 @@ func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error
 			err = errors.Join(err, closeErr)
 		}
 	}()
-	_, err = kfh.Write(kp.PrivateKey())
+	_, err = kfh.Write(keyData)
 	if err != nil {
 		return cfh, kfh, fmt.Errorf("unable to create key file - %w", err)
 	}
