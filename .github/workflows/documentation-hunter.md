@@ -29,7 +29,7 @@ safe-outputs:
   create-pull-request:
     max: ${{ github.aw.import-inputs.max-pull-requests-per-run }}
     branch-prefix: "code-hunters/documentation-hunter/"
-    draft: true
+    draft: false
     auto-merge: false
     allow-empty: false
     if-no-changes: ignore

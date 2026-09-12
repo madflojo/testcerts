@@ -70,6 +70,25 @@ func TestFunc(t *testing.T) {
 }
 ```
 
+`KeyPairConfig` supports additional certificate options. Set `Expired` when a test needs a
+certificate whose `NotAfter` time is already in the past.
+
+```go
+func TestExpiredCertificate(t *testing.T) {
+	ca := testcerts.NewCA()
+	certs, err := ca.NewKeyPairFromConfig(testcerts.KeyPairConfig{
+		Domains: []string{"localhost"},
+		Expired: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !certs.Cert().NotAfter.Before(time.Now()) {
+		t.Fatal("expected an expired certificate")
+	}
+}
+```
+
 Simplify your testing, and don't hassle with certificates anymore.
 
 ## Contributing
@@ -79,4 +98,3 @@ If you find a bug or have an idea for a feature, please open an issue or a pull 
 ## License
 
 testcerts is released under the MIT License. See [LICENSE](./LICENSE) for details.
-
