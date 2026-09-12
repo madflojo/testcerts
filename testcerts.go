@@ -241,10 +241,10 @@ func (ca *CertificateAuthority) PublicKey() []byte {
 }
 
 func writePairToFiles(certData []byte, certFile string, keyData []byte, keyFile string) error {
-	if err := validatePEMData(certData, ErrEmptyCertificateData, ErrInvalidCertificateData); err != nil {
+	if err := validateCertificateData(certData); err != nil {
 		return err
 	}
-	if err := validatePEMData(keyData, ErrEmptyKeyData, ErrInvalidKeyData); err != nil {
+	if err := validateKeyData(keyData); err != nil {
 		return err
 	}
 
@@ -263,26 +263,9 @@ func writePairToFiles(certData []byte, certFile string, keyData []byte, keyFile 
 	return nil
 }
 
-func validatePEMData(data []byte, emptyErr, invalidErr error) error {
-	if len(data) == 0 {
-		return emptyErr
-	}
-	block, _ := pem.Decode(data)
-	if block == nil || len(block.Bytes) == 0 {
-		return invalidErr
-	}
-	return nil
-}
-
-// ToFile saves the CertificateAuthority certificate and private key to the specified files.
-// Returns an error if any file operation fails.
-func (ca *CertificateAuthority) ToFile(certFile, keyFile string) error {
-	return writePairToFiles(ca.PublicKey(), certFile, ca.PrivateKey(), keyFile)
-}
-
-// ToTempFile saves the CertificateAuthority certificate and private key to temporary files.
-// The temporary files are created in the specified directory and have random names.
-func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error) {
+// writePairToTempFiles writes certData and keyData to newly created temporary files in dir,
+// returning the open file handles for the certificate and key respectively.
+func writePairToTempFiles(certData, keyData []byte, dir string) (cfh *os.File, kfh *os.File, err error) {
 	// Write Certificate
 	cfh, err = os.CreateTemp(dir, "*.cert")
 	if err != nil {
@@ -293,7 +276,7 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 			err = errors.Join(err, closeErr)
 		}
 	}()
-	_, err = cfh.Write(ca.PublicKey())
+	_, err = cfh.Write(certData)
 	if err != nil {
 		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
 	}
@@ -308,12 +291,49 @@ func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.Fi
 			err = errors.Join(err, closeErr)
 		}
 	}()
-	_, err = kfh.Write(ca.PrivateKey())
+	_, err = kfh.Write(keyData)
 	if err != nil {
 		return cfh, kfh, fmt.Errorf("unable to create key file - %w", err)
 	}
 
 	return cfh, kfh, nil
+}
+
+func validateCertificateData(data []byte) error {
+	if len(data) == 0 {
+		return ErrEmptyCertificateData
+	}
+	if !isValidPEMData(data) {
+		return ErrInvalidCertificateData
+	}
+	return nil
+}
+
+func validateKeyData(data []byte) error {
+	if len(data) == 0 {
+		return ErrEmptyKeyData
+	}
+	if !isValidPEMData(data) {
+		return ErrInvalidKeyData
+	}
+	return nil
+}
+
+func isValidPEMData(data []byte) bool {
+	block, _ := pem.Decode(data)
+	return block != nil && len(block.Bytes) > 0
+}
+
+// ToFile saves the CertificateAuthority certificate and private key to the specified files.
+// Returns an error if any file operation fails.
+func (ca *CertificateAuthority) ToFile(certFile, keyFile string) error {
+	return writePairToFiles(ca.PublicKey(), certFile, ca.PrivateKey(), keyFile)
+}
+
+// ToTempFile saves the CertificateAuthority certificate and private key to temporary files.
+// The temporary files are created in the specified directory and have random names.
+func (ca *CertificateAuthority) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error) {
+	return writePairToTempFiles(ca.PublicKey(), ca.PrivateKey(), dir)
 }
 
 // GenerateTLSConfig returns a tls.Config with the CertificateAuthority as the RootCA.
@@ -354,37 +374,7 @@ func (kp *KeyPair) ToFile(certFile, keyFile string) error {
 // ToTempFile saves the KeyPair certificate and private key to temporary files.
 // The temporary files are created in the specified directory and have random names.
 func (kp *KeyPair) ToTempFile(dir string) (cfh *os.File, kfh *os.File, err error) {
-	// Write Certificate
-	cfh, err = os.CreateTemp(dir, "*.cert")
-	if err != nil {
-		return &os.File{}, &os.File{}, fmt.Errorf("could not create temporary file - %w", err)
-	}
-	defer func() {
-		if closeErr := cfh.Close(); closeErr != nil {
-			err = errors.Join(err, closeErr)
-		}
-	}()
-	_, err = cfh.Write(kp.PublicKey())
-	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create certificate file - %w", err)
-	}
-
-	// Write Key
-	kfh, err = os.CreateTemp(dir, "*.key")
-	if err != nil {
-		return cfh, &os.File{}, fmt.Errorf("unable to create key file - %w", err)
-	}
-	defer func() {
-		if closeErr := kfh.Close(); closeErr != nil {
-			err = errors.Join(err, closeErr)
-		}
-	}()
-	_, err = kfh.Write(kp.PrivateKey())
-	if err != nil {
-		return cfh, kfh, fmt.Errorf("unable to create key file - %w", err)
-	}
-
-	return cfh, kfh, nil
+	return writePairToTempFiles(kp.PublicKey(), kp.PrivateKey(), dir)
 }
 
 // ConfigureTLSConfig configures tlsConfig with the KeyPair certificate and private key.
