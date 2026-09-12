@@ -33,7 +33,7 @@ imports:
   - uses: ./documentation-hunter.md
     with:
       allowed-files: ["README.md", "*.go"]
-      protected-files: fallback-to-issue
+      protected-files: request_review
       # Default per-run limit. Change only through explicit operator configuration.
       max-pull-requests-per-run: 5
 ---

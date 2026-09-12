@@ -29,7 +29,7 @@ safe-outputs:
   create-pull-request:
     max: ${{ github.aw.import-inputs.max-pull-requests-per-run }}
     branch-prefix: "code-hunters/documentation-hunter/"
-    draft: true
+    draft: false
     auto-merge: false
     allow-empty: false
     if-no-changes: ignore
@@ -81,7 +81,7 @@ Finds consequential documentation drift and makes small, source-backed updates t
    propose a pull request when your change causes a validation failure. If unrelated infrastructure
    blocks a check, report the exact command and limitation without claiming success.
 10. Review the final diff for unrelated edits, generated noise, exposed secrets, and excess scope.
-11. Default to at most five draft pull requests per run and ten open Code Hunters pull requests
+11. Default to at most five pull requests per run and ten open Code Hunters pull requests
    repository-wide. At the final delivery gate, immediately before opening each pull request,
    refresh open pull requests, relevant issues, fingerprint matches, and remaining repository-wide
    capacity. Skip duplicate or overlapping work and stop when no capacity remains. If remote state
@@ -254,9 +254,10 @@ def fetch(limit=100):
 ## Delivery
 
 - If local editing is available, leave the working tree with only the focused, validated change.
-- Open draft pull requests only when remote write access is available and the run is authorized to
-  mutate that repository. Keep every pull request independently reviewable. Otherwise return a
-  concise report with findings, evidence, changed files, validation, and remaining delivery steps.
+- Open ready-for-review pull requests only when remote write access is available and the run is
+  authorized to mutate that repository. Keep every pull request independently reviewable.
+  Otherwise return a concise report with findings, evidence, changed files, validation, and
+  remaining delivery steps.
 - If repository or tool access is insufficient to investigate meaningfully, report the run as
   incomplete rather than guessing.
 
@@ -272,7 +273,7 @@ End every run with a concise report containing:
   accepted correction.
 - Changes: files changed and why each correction is the smallest safe option.
 - Validation: exact commands and outcomes, including unavailable or unrelated failing checks.
-- Delivery: draft pull request links when created, otherwise the remaining delivery step.
+- Delivery: pull request links when created, otherwise the remaining delivery step.
 - Warnings: label failures, permission limits, or other non-blocking constraints.
 - Projected pull requests: number created or that would be created, after per-run and open-PR caps.
 
