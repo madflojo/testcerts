@@ -17,6 +17,18 @@ import (
 	"time"
 )
 
+func assertDirectoryEmpty(t *testing.T, dir string) {
+	t.Helper()
+
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("error reading directory %q: %v", dir, err)
+	}
+	if len(entries) != 0 {
+		t.Fatalf("expected no files in %q, found %d", dir, len(entries))
+	}
+}
+
 func TestCertsUsage(t *testing.T) {
 	// Generate CA
 	ca := NewCA()
@@ -203,6 +215,59 @@ func TestCertsUsage(t *testing.T) {
 		}
 	})
 
+	t.Run("Write Missing Data to TempFile", func(t *testing.T) {
+		tempDir := t.TempDir()
+
+		var emptyCA *CertificateAuthority
+		_, _, err := emptyCA.ToTempFile(tempDir)
+		if !errors.Is(err, ErrEmptyCertificateData) {
+			t.Fatalf("expected ErrEmptyCertificateData, got %v", err)
+		}
+
+		assertDirectoryEmpty(t, tempDir)
+	})
+
+	t.Run("Reject Invalid TempFile Data", func(t *testing.T) {
+		validCert := ca.PublicKey()
+		validKey := ca.PrivateKey()
+		for _, tc := range []struct {
+			name     string
+			certData []byte
+			keyData  []byte
+			wantErr  error
+		}{
+			{
+				name:     "invalid cert",
+				certData: []byte("not pem"),
+				keyData:  validKey,
+				wantErr:  ErrInvalidCertificateData,
+			},
+			{
+				name:     "empty key",
+				certData: validCert,
+				keyData:  nil,
+				wantErr:  ErrEmptyKeyData,
+			},
+			{
+				name:     "invalid key",
+				certData: validCert,
+				keyData:  []byte("not pem"),
+				wantErr:  ErrInvalidKeyData,
+			},
+		} {
+			t.Run(tc.name, func(t *testing.T) {
+				tempDir := t.TempDir()
+
+				_, _, err := writePairToTempFiles(tc.certData, tc.keyData, tempDir)
+				if !errors.Is(err, tc.wantErr) {
+					t.Fatalf("expected %v, got %v", tc.wantErr, err)
+				}
+
+				assertDirectoryEmpty(t, tempDir)
+			})
+		}
+	})
+
 	for _, domains := range [][]string{{"localhost", "127.0.0.1", "example.com"}, {}} {
 		t.Run(fmt.Sprintf("Generate KeyPair with %d Domains", len(domains)), func(t *testing.T) {
 			kp, err := ca.NewKeyPair(domains...)
@@ -323,6 +388,18 @@ func TestCertsUsage(t *testing.T) {
 				if err == nil {
 					t.Errorf("Unexpected success with invalid tempfile directory")
 				}
+			})
+
+			t.Run("Write Missing Data to TempFile", func(t *testing.T) {
+				tempDir := t.TempDir()
+
+				var emptyKP *KeyPair
+				_, _, err := emptyKP.ToTempFile(tempDir)
+				if !errors.Is(err, ErrEmptyCertificateData) {
+					t.Fatalf("expected ErrEmptyCertificateData, got %v", err)
+				}
+
+				assertDirectoryEmpty(t, tempDir)
 			})
 		})
 	}

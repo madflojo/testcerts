@@ -266,6 +266,13 @@ func writePairToFiles(certData []byte, certFile string, keyData []byte, keyFile 
 // writePairToTempFiles writes certData and keyData to newly created temporary files in dir,
 // returning the open file handles for the certificate and key respectively.
 func writePairToTempFiles(certData, keyData []byte, dir string) (cfh *os.File, kfh *os.File, err error) {
+	if err = validateCertificateData(certData); err != nil {
+		return &os.File{}, &os.File{}, err
+	}
+	if err = validateKeyData(keyData); err != nil {
+		return &os.File{}, &os.File{}, err
+	}
+
 	// Write Certificate
 	cfh, err = os.CreateTemp(dir, "*.cert")
 	if err != nil {
