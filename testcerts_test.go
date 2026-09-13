@@ -401,6 +401,36 @@ func TestCertsUsage(t *testing.T) {
 
 				assertDirectoryEmpty(t, tempDir)
 			})
+
+			t.Run("ConfigureTLSConfig with nil config creates default", func(t *testing.T) {
+				tlsConfig, err := kp.ConfigureTLSConfig(nil)
+				if err != nil {
+					t.Fatalf("unexpected error configuring TLS with nil config: %s", err)
+				}
+				if tlsConfig == nil {
+					t.Fatalf("expected non-nil tls.Config")
+				}
+				if len(tlsConfig.Certificates) != 1 {
+					t.Fatalf("expected 1 certificate on new config, got %d", len(tlsConfig.Certificates))
+				}
+			})
+
+			t.Run("ConfigureTLSConfig rejects mismatched key pair", func(t *testing.T) {
+				other, err := ca.NewKeyPair(domains...)
+				if err != nil {
+					t.Fatalf("Error generating second keypair: %s", err)
+				}
+
+				mismatched := &KeyPair{
+					cert:       kp.cert,
+					publicKey:  kp.publicKey,
+					privateKey: other.privateKey,
+				}
+
+				if _, err := mismatched.ConfigureTLSConfig(nil); err == nil {
+					t.Fatalf("expected error configuring TLS with mismatched key pair, got nil")
+				}
+			})
 		})
 	}
 }
