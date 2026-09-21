@@ -133,6 +133,16 @@ func TestCertsUsage(t *testing.T) {
 		})
 	})
 
+	t.Run("Nil CertificateAuthority Cert and CertPool do not panic", func(t *testing.T) {
+		var emptyCA *CertificateAuthority
+		if cert := emptyCA.Cert(); cert != nil {
+			t.Errorf("expected nil certificate, got %v", cert)
+		}
+		if pool := emptyCA.CertPool(); pool != nil {
+			t.Errorf("expected nil certificate pool, got %v", pool)
+		}
+	})
+
 	t.Run("Write Missing Data to File", func(t *testing.T) {
 		tempDir, err := os.MkdirTemp("", "")
 		if err != nil {
@@ -400,6 +410,13 @@ func TestCertsUsage(t *testing.T) {
 				}
 
 				assertDirectoryEmpty(t, tempDir)
+			})
+
+			t.Run("Nil KeyPair Cert does not panic", func(t *testing.T) {
+				var emptyKP *KeyPair
+				if cert := emptyKP.Cert(); cert != nil {
+					t.Errorf("expected nil certificate, got %v", cert)
+				}
 			})
 		})
 	}
