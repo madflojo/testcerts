@@ -43,13 +43,8 @@ func (c *KeyPairConfig) Validate() error {
 	}
 
 	// Validate IP addresses.
-	for _, ip := range c.IPAddresses {
-		if net.ParseIP(ip) == nil {
-			return ErrInvalidIP
-		}
-	}
-
-	return nil
+	_, err := c.IPNetAddresses()
+	return err
 }
 
 // IPNetAddresses returns a list of IP addresses in net.IP format.
