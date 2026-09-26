@@ -91,6 +91,14 @@ func TestExpiredCertificate(t *testing.T) {
 
 Simplify your testing, and don't hassle with certificates anymore.
 
+## Releases
+
+Releases are managed by Release Please. Use
+[Conventional Commits](https://www.conventionalcommits.org/) for changes merged
+to `main`; releaseable commits create or update a release pull request with a
+generated changelog. Merging that pull request publishes the corresponding
+version tag and GitHub release.
+
 ## Contributing
 
 If you find a bug or have an idea for a feature, please open an issue or a pull request.
