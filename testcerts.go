@@ -58,7 +58,7 @@ that Certificate Authority for any test domain you want.
 		}
 
 		// Make an HTTPS request
-		r, _ := client.Get("https://localhost")
+		_, _ = client.Get("https://localhost")
 	}
 
 Simplify your testing, and don't hassle with certificates anymore.
