@@ -46,8 +46,8 @@ that Certificate Authority for any test domain you want.
 		}()
 
 		// Create a client with the self-signed CA
-		tlsConfig, err := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
-		if err != nil {
+		tlsConfig, cfgErr := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
+		if cfgErr != nil {
 			// do something
 		}
 
