@@ -40,8 +40,7 @@ that Certificate Authority for any test domain you want.
 
 		// Start HTTP Listener
 		go func() {
-			err = http.ListenAndServeTLS("localhost:443", "/tmp/cert", "/tmp/key", someHandler)
-			if err != nil {
+			if err := http.ListenAndServeTLS("localhost:443", "/tmp/cert", "/tmp/key", someHandler); err != nil {
 				// do something
 			}
 		}()
