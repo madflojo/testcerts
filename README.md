@@ -47,15 +47,14 @@ func TestFunc(t *testing.T) {
 
 	// Start HTTP Listener
 	go func() {
-		err = http.ListenAndServeTLS("localhost:443", "/tmp/cert", "/tmp/key", someHandler)
-		if err != nil {
+		if err := http.ListenAndServeTLS("localhost:443", "/tmp/cert", "/tmp/key", someHandler); err != nil {
 			// do something
 		}
 	}()
 
 	// Create a client with the self-signed CA
-	tlsConfig, err := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
-	if err != nil {
+	tlsConfig, cfgErr := certs.ConfigureTLSConfig(ca.GenerateTLSConfig())
+	if cfgErr != nil {
 		// do something
 	}
 
@@ -66,7 +65,7 @@ func TestFunc(t *testing.T) {
 	}
 
 	// Make an HTTPS request
-	r, _ := client.Get("https://localhost")
+	_, _ = client.Get("https://localhost")
 }
 ```
 
