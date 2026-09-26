@@ -216,11 +216,17 @@ func (ca *CertificateAuthority) NewKeyPairFromConfig(config KeyPairConfig) (*Key
 
 // Cert returns the CertificateAuthority Certificate.
 func (ca *CertificateAuthority) Cert() *x509.Certificate {
+	if ca == nil {
+		return nil
+	}
 	return ca.cert
 }
 
 // CertPool returns a Certificate Pool of the CertificateAuthority Certificate.
 func (ca *CertificateAuthority) CertPool() *x509.CertPool {
+	if ca == nil {
+		return nil
+	}
 	return ca.certPool
 }
 
@@ -353,6 +359,9 @@ func (ca *CertificateAuthority) GenerateTLSConfig() *tls.Config {
 
 // Cert returns the Certificate of the KeyPair.
 func (kp *KeyPair) Cert() *x509.Certificate {
+	if kp == nil {
+		return nil
+	}
 	return kp.cert
 }
 
