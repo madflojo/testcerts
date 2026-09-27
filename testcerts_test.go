@@ -412,6 +412,24 @@ func TestCertsUsage(t *testing.T) {
 				assertDirectoryEmpty(t, tempDir)
 			})
 
+			t.Run("Write Missing Data to File", func(t *testing.T) {
+				tempDir := t.TempDir()
+				certPath := filepath.Join(tempDir, "cert")
+				keyPath := filepath.Join(tempDir, "key")
+
+				var emptyKP *KeyPair
+				err := emptyKP.ToFile(certPath, keyPath)
+				if !errors.Is(err, ErrEmptyCertificateData) {
+					t.Fatalf("expected ErrEmptyCertificateData, got %v", err)
+				}
+				if _, statErr := os.Stat(certPath); !os.IsNotExist(statErr) {
+					t.Fatalf("expected no certificate file, got %v", statErr)
+				}
+				if _, statErr := os.Stat(keyPath); !os.IsNotExist(statErr) {
+					t.Fatalf("expected no key file, got %v", statErr)
+				}
+			})
+
 			t.Run("ConfigureTLSConfig with nil config creates default", func(t *testing.T) {
 				tlsConfig, err := kp.ConfigureTLSConfig(nil)
 				if err != nil {
