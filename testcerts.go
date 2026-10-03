@@ -154,6 +154,7 @@ func NewCA() *CertificateAuthority {
 
 // NewKeyPair generates a new KeyPair signed by the CertificateAuthority for the given domains.
 // The domains are used to populate the Subject Alternative Name field of the certificate.
+// If no domains are provided, the certificate is issued for "localhost", 127.0.0.1, and ::1.
 func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) {
 	config := KeyPairConfig{Domains: domains}
 	if len(domains) == 0 {
