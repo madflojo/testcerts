@@ -418,7 +418,7 @@ func genSelfSignedKeyPair(cert *x509.Certificate) (*pem.Block, *ecdsa.PrivateKey
 	// Create a Private Key
 	key, err := ecdsa.GenerateKey(elliptic.P521(), rand.Reader)
 	if err != nil {
-		return nil, nil, fmt.Errorf("could not generate ecdsa key - %w", err)
+		return nil, nil, fmt.Errorf("could not generate key - %w", err)
 	}
 
 	// Use CA Cert to sign and create a Public Cert
