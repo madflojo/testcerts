@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.5.2](https://github.com/madflojo/testcerts/compare/v1.5.1...v1.5.2) (2026-11-02)
+
+
+### Documentation
+
+* **testcerts:** document NewKeyPair default SANs - Documentation Hunter ([df0061e](https://github.com/madflojo/testcerts/commit/df0061e71e6054494ec01b7d175bd7f131cc4d2f))
+
+
+### Code Refactoring
+
+* **testcerts:** correct stale key generation error messages - Maintainability Hunter ([803bbae](https://github.com/madflojo/testcerts/commit/803bbae63a58d3ac8546cdddf3d91bf75a6693fd))
+
 ## [1.5.1](https://github.com/madflojo/testcerts/compare/v1.5.0...v1.5.1) (2026-09-27)
 
 
