@@ -166,6 +166,8 @@ func (ca *CertificateAuthority) NewKeyPair(domains ...string) (*KeyPair, error) 
 
 // NewKeyPairFromConfig generates a new KeyPair signed by the CertificateAuthority from the given configuration.
 // The configuration is used to populate the Subject Alternative Name field of the certificate.
+// It returns ErrEmptyConfig when config has neither Domains nor IPAddresses, and ErrInvalidIP when
+// an entry in IPAddresses cannot be parsed. Unlike NewKeyPair, no default domains are applied.
 func (ca *CertificateAuthority) NewKeyPairFromConfig(config KeyPairConfig) (*KeyPair, error) {
 	// Validate the configuration
 	err := config.Validate()
