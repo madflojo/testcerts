@@ -25,12 +25,15 @@ type KeyPairConfig struct {
 	IPAddresses []string
 
 	// SerialNumber is the serial number to use for the certificate.
+	// If nil, 42 is used.
 	SerialNumber *big.Int
 
-	// CommonName is the Common Name to use for the certificate.
+	// CommonName is the Common Name to use for the certificate. It is left
+	// empty when not set.
 	CommonName string
 
-	// Expired creates expired certificates.
+	// Expired creates expired certificates. The certificate's NotAfter time is
+	// set 30 minutes in the past instead of 2 hours in the future.
 	Expired bool
 }
 
