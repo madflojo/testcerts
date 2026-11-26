@@ -637,6 +637,40 @@ func TestKeyPairConfig(t *testing.T) {
 	})
 }
 
+func TestNewKeyPairSANs(t *testing.T) {
+	t.Run("No domains defaults to localhost, 127.0.0.1 and ::1", func(t *testing.T) {
+		kp, err := NewCA().NewKeyPair()
+		if err != nil {
+			t.Fatalf("NewKeyPair() returned error: %v", err)
+		}
+
+		cert := kp.Cert()
+		if len(cert.DNSNames) != 1 || cert.DNSNames[0] != "localhost" {
+			t.Errorf("Unexpected DNSNames, expected [localhost] got %v", cert.DNSNames)
+		}
+		if len(cert.IPAddresses) != 2 ||
+			!cert.IPAddresses[0].Equal(net.ParseIP("127.0.0.1")) ||
+			!cert.IPAddresses[1].Equal(net.ParseIP("::1")) {
+			t.Errorf("Unexpected IPAddresses, expected [127.0.0.1 ::1] got %v", cert.IPAddresses)
+		}
+	})
+
+	t.Run("Explicit domains are used without default IPs", func(t *testing.T) {
+		kp, err := NewCA().NewKeyPair("example.com", "example.org")
+		if err != nil {
+			t.Fatalf("NewKeyPair() returned error: %v", err)
+		}
+
+		cert := kp.Cert()
+		if len(cert.DNSNames) != 2 || cert.DNSNames[0] != "example.com" || cert.DNSNames[1] != "example.org" {
+			t.Errorf("Unexpected DNSNames, expected [example.com example.org] got %v", cert.DNSNames)
+		}
+		if len(cert.IPAddresses) != 0 {
+			t.Errorf("Expected no IPAddresses, got %v", cert.IPAddresses)
+		}
+	})
+}
+
 type FullFlowTestCase struct {
 	name      string
 	domains   []string
