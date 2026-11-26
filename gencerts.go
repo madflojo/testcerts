@@ -3,6 +3,11 @@ package testcerts
 // GenerateCerts generates a x509 certificate and key.
 // It returns the certificate and key as byte slices, and any error that occurred.
 //
+// If no domains are provided, the returned certificate is a self-signed Certificate Authority
+// certificate that contains no Subject Alternative Names. If domains are provided, the certificate
+// is a leaf certificate for those domains signed by a newly generated Certificate Authority, and
+// that Certificate Authority is not returned.
+//
 //	cert, key, err := GenerateCerts()
 //	if err != nil {
 //		// handle error
