@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.5.2](https://github.com/madflojo/testcerts/compare/v1.5.1...v1.5.2) (2026-11-27)
+
+
+### Documentation
+
+* **testcerts:** document GenerateCerts CA vs leaf output - Documentation Hunter ([e8da3c9](https://github.com/madflojo/testcerts/commit/e8da3c9ef9223ee61df44147e50cb26fc500fea4))
+* **testcerts:** document KeyPairConfig defaults and errors - Documentation Hunter ([b161673](https://github.com/madflojo/testcerts/commit/b161673d0be72c6f5300ad1371da2fd404381490))
+* **testcerts:** document NewKeyPair default SANs - Documentation Hunter ([df0061e](https://github.com/madflojo/testcerts/commit/df0061e71e6054494ec01b7d175bd7f131cc4d2f))
+
+
+### Code Refactoring
+
+* **testcerts:** correct stale key generation error messages - Maintainability Hunter ([803bbae](https://github.com/madflojo/testcerts/commit/803bbae63a58d3ac8546cdddf3d91bf75a6693fd))
+
+
+### Tests
+
+* **testcerts:** cover GenerateCerts CA vs leaf output - Testing Hunter ([3eb41c2](https://github.com/madflojo/testcerts/commit/3eb41c2c9631f61190390a018ca44bd83e7da5d1))
+* **testcerts:** cover GenerateCerts CA vs leaf output - Testing Hunter ([f4cf91b](https://github.com/madflojo/testcerts/commit/f4cf91b58f611335b2d7a4b8a69a3a29059fd16d))
+* **testcerts:** cover NewKeyPair default SANs - Testing Hunter ([1b621d2](https://github.com/madflojo/testcerts/commit/1b621d2efa8466f7d9e5f253c39738fdec0708b3))
+
 ## [1.5.1](https://github.com/madflojo/testcerts/compare/v1.5.0...v1.5.1) (2026-09-27)
 
 
