@@ -14,3 +14,14 @@ updates:
       include: scope
     ignore:
       - dependency-name: github/gh-aw-actions/setup
+  - package-ecosystem: npm
+    directory: /.github/commitlint
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: ci
+      include: scope
+    groups:
+      commitlint:
+        patterns:
+          - '*'
