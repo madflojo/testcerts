@@ -1,6 +1,8 @@
 package testcerts
 
 import (
+	"crypto/x509"
+	"encoding/pem"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -38,6 +40,50 @@ func TestGeneratingCerts(t *testing.T) {
 
 		if len(cert) == 0 || len(key) == 0 {
 			t.Errorf("Cert %d or Key %d is empty", len(cert), len(key))
+		}
+	})
+}
+
+func TestGenerateCertsOutputKind(t *testing.T) {
+	parse := func(t *testing.T, certPEM []byte) *x509.Certificate {
+		t.Helper()
+		block, _ := pem.Decode(certPEM)
+		if block == nil {
+			t.Fatal("certificate is not valid PEM")
+		}
+		c, err := x509.ParseCertificate(block.Bytes)
+		if err != nil {
+			t.Fatalf("could not parse certificate - %s", err)
+		}
+		return c
+	}
+
+	t.Run("No Domain returns a CA certificate", func(t *testing.T) {
+		cert, _, err := GenerateCerts()
+		if err != nil {
+			t.Fatalf("Error while generating certificates - %s", err)
+		}
+		c := parse(t, cert)
+		if !c.IsCA {
+			t.Error("expected a CA certificate")
+		}
+		if len(c.DNSNames) != 0 || len(c.IPAddresses) != 0 {
+			t.Errorf("expected no SANs, got %v %v", c.DNSNames, c.IPAddresses)
+		}
+	})
+
+	t.Run("With Domains returns a leaf certificate with SANs", func(t *testing.T) {
+		domains := []string{"example.com", "example.org"}
+		cert, _, err := GenerateCerts(domains...)
+		if err != nil {
+			t.Fatalf("Error while generating certificates - %s", err)
+		}
+		c := parse(t, cert)
+		if c.IsCA {
+			t.Error("expected a leaf certificate, got a CA")
+		}
+		if len(c.DNSNames) != len(domains) || c.DNSNames[0] != domains[0] || c.DNSNames[1] != domains[1] {
+			t.Errorf("DNSNames = %v, want %v", c.DNSNames, domains)
 		}
 	})
 }
