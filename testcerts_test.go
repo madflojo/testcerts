@@ -1,6 +1,7 @@
 package testcerts
 
 import (
+	"bytes"
 	"context"
 	"crypto/tls"
 	"crypto/x509"
@@ -979,4 +980,98 @@ func ExampleNewCA() {
 
 	// Output:
 	// 200 OK
+}
+
+func TestConfigureTLSConfigExistingConfig(t *testing.T) {
+	ca := NewCA()
+	kp, err := ca.NewKeyPair()
+	if err != nil {
+		t.Fatalf("unexpected error generating keypair: %s", err)
+	}
+
+	t.Run("Mutates and returns the provided config preserving settings", func(t *testing.T) {
+		base := ca.GenerateTLSConfig()
+		base.ServerName = "example.test"
+		base.MinVersion = tls.VersionTLS13
+		wantRoots, wantClients := base.RootCAs.Clone(), base.ClientCAs.Clone()
+
+		got, err := kp.ConfigureTLSConfig(base)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if got != base {
+			t.Fatalf("expected the provided tls.Config to be returned")
+		}
+		if len(got.Certificates) != 1 {
+			t.Fatalf("expected 1 certificate, got %d", len(got.Certificates))
+		}
+		if !wantRoots.Equal(got.RootCAs) || !wantClients.Equal(got.ClientCAs) {
+			t.Error("expected root and client CA trust anchors to be preserved")
+		}
+		if got.ServerName != "example.test" || got.MinVersion != tls.VersionTLS13 {
+			t.Errorf("expected existing settings to be preserved, got %q / %x", got.ServerName, got.MinVersion)
+		}
+	})
+
+	t.Run("Appends to existing certificates", func(t *testing.T) {
+		other, err := ca.NewKeyPair("other.test")
+		if err != nil {
+			t.Fatalf("unexpected error generating keypair: %s", err)
+		}
+		got, err := kp.ConfigureTLSConfig(nil)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		got, err = other.ConfigureTLSConfig(got)
+		if err != nil {
+			t.Fatalf("unexpected error: %s", err)
+		}
+		if len(got.Certificates) != 2 {
+			t.Fatalf("expected 2 certificates, got %d", len(got.Certificates))
+		}
+		for i, want := range [][]byte{kp.publicKey.Bytes, other.publicKey.Bytes} {
+			chain := got.Certificates[i].Certificate
+			if len(chain) != 1 || !bytes.Equal(chain[0], want) {
+				t.Errorf("certificate %d does not match the expected keypair", i)
+			}
+		}
+	})
+
+	t.Run("Error leaves the provided config unchanged", func(t *testing.T) {
+		other, err := ca.NewKeyPair()
+		if err != nil {
+			t.Fatalf("unexpected error generating keypair: %s", err)
+		}
+		mismatched := &KeyPair{cert: kp.cert, publicKey: kp.publicKey, privateKey: other.privateKey}
+
+		base, err := kp.ConfigureTLSConfig(ca.GenerateTLSConfig())
+		if err != nil {
+			t.Fatalf("could not populate TLS config: %s", err)
+		}
+		base.ServerName = "example.test"
+		base.MinVersion = tls.VersionTLS13
+		wantRoots, wantClients := base.RootCAs.Clone(), base.ClientCAs.Clone()
+		wantCertificate := kp.publicKey.Bytes
+
+		got, err := mismatched.ConfigureTLSConfig(base)
+		if err == nil {
+			t.Fatalf("expected error for mismatched key pair")
+		}
+		if got != nil {
+			t.Errorf("expected nil config on error")
+		}
+		if len(base.Certificates) != 1 {
+			t.Fatalf("expected the original certificate, got %d certificates", len(base.Certificates))
+		}
+		chain := base.Certificates[0].Certificate
+		if len(chain) != 1 || !bytes.Equal(chain[0], wantCertificate) {
+			t.Error("expected the original certificate to remain unchanged")
+		}
+		if !wantRoots.Equal(base.RootCAs) || !wantClients.Equal(base.ClientCAs) {
+			t.Error("expected root and client CA trust anchors to remain unchanged")
+		}
+		if base.ServerName != "example.test" || base.MinVersion != tls.VersionTLS13 {
+			t.Errorf("expected original TLS settings, got %q / %x", base.ServerName, base.MinVersion)
+		}
+	})
 }
