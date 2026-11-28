@@ -17,7 +17,6 @@
 
 ### Tests
 
-* **testcerts:** cover GenerateCerts CA vs leaf output - Testing Hunter ([3eb41c2](https://github.com/madflojo/testcerts/commit/3eb41c2c9631f61190390a018ca44bd83e7da5d1))
 * **testcerts:** cover GenerateCerts CA vs leaf output - Testing Hunter ([f4cf91b](https://github.com/madflojo/testcerts/commit/f4cf91b58f611335b2d7a4b8a69a3a29059fd16d))
 * **testcerts:** cover NewKeyPair default SANs - Testing Hunter ([1b621d2](https://github.com/madflojo/testcerts/commit/1b621d2efa8466f7d9e5f253c39738fdec0708b3))
 
